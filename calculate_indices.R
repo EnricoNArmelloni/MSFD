@@ -44,8 +44,8 @@ p_names <- map_chr(p, ~paste0( "perc", .x*100))
 p_funs <- map(p, ~partial(quantile, probs = .x, na.rm = TRUE)) %>% set_names(nm = p_names)
 
 percentiledf <-dati%>%dplyr::group_by(Year)%>%dplyr::summarize_at(vars(Length), funs(!!!p_funs))
-percentiledf_mean <-na.omit(percentiledf)%>%dplyr::summarise(mean_95perc=mean(perc95))
+percentiledf_mean <-na.omit(percentiledf)%>%dplyr::summarise(mean_95perc=mean(perc95))%>%dplyr::mutate(Percentile="Mean 0.95")
 
-ggplot() + geom_line(data=percentiledf,aes(x=Year,y=perc95)) + geom_hline(data=percentiledf_mean, aes(yintercept = mean_95perc), color="blue")+ ggtitle("D3C3", paste(species, GSA, sep=" "))+ ylab("0.95 percentile lenght (mm)")
+ggplot() + geom_line(data=percentiledf,aes(x=Year,y=perc95)) + geom_hline(data=percentiledf_mean, aes(yintercept = mean_95perc, color=Percentile))+ ggtitle("D3C3", paste(species, GSA, sep=" "))+ ylab("0.95 percentile lenght (mm)")
 ggsave(paste0(".","/",sp_code, GSA,"/", "D3C3.png"))
 
