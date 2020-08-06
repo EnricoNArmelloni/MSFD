@@ -3,36 +3,31 @@ library(splitstackshape)
 library(tidyverse)
 library(readxl)
 library(data.table)
-
 rm(list=ls()) 
+
+
 ###--- Set parameters
 sel_ind<-"L95"
-
-pars<-read_excel("~/CNR/MSFD/github/MSFD/Data/parameters.xlsx")
-#for(i in 1:nrow(pars)){
-  
-#species=pars[i,1]#"MTS"
-
 species="SOL"
 area="GSA 17"
-
-mydir="~/CNR/MSFD/github/MSFD/output"
+mydir_input="~/CNR/MSFD/github/MSFD/Data"
+mydir_out="~/CNR/MSFD/github/MSFD/output" #### Directory for outputs
 
 
 ###-- Run
-if(dir.exists(paste0(mydir,"/",species))==TRUE){
+if(dir.exists(paste0(mydir_out,"/",species))==TRUE){
   NA
 }else{
-  dir.create(paste0(mydir,"/",species))
+  dir.create(paste0(mydir_out,"/",species))
 }
 
 # Load data
-LFD<-read_excel(paste0("~/CNR/MSFD/github/MSFD/Data/LFDs/LFD_", species ,".xlsx"))%>%
+LFD<-read_excel(paste0(mydir_input, "/LFDs/LFD_", species ,".xlsx"))%>%
   dplyr::mutate(Yr=as.numeric(substr(str_remove(Survey, "SOLEMON"), 1,4)))%>%
   dplyr::rename("Lenght"="LengthClass", "Frequency"="AbunIndex")
   #dplyr::mutate(Lenght_class=Lenght_class/10)
 
-
+pars<-read_excel(paste0(mydir_input, "/parameters.xlsx"))
 Linf=pars$Linf[pars$species==species]
 cutoff=1.1*((2/3)*Linf)
 
@@ -67,7 +62,7 @@ if(sel_ind=="L95"){
 
 
 ggplot() + geom_line(data=Ind,aes(x=Yr,y=Val)) + geom_hline(data=Ind, aes(yintercept = mean(Ind$Val)), color="red")+ggtitle(paste0(sel_ind, " from observed population,", species," " ,area))+ylab("cm")+xlab("Year")
-ggsave(paste0(mydir, "/", species, "/", sel_ind, species,  ".png"))
+ggsave(paste0(mydir_out, "/", species, "/", sel_ind, species,  ".png"))
 
 ####   ----------- BP analysis
 # Step 1: identify BP
@@ -215,7 +210,7 @@ if(TA==0) {
     annotate("text", x=max(dfpar$Year-2), y=max(dfpar$Val-3), label= "Negative trend in recent years") 
 }
 pf+ggtitle(paste(species, area, sel_ind))
-ggsave(paste0(mydir, "/", species, "/", sel_ind, species,  "summary.png"), width=200, units="mm")  
+ggsave(paste0(mydir_out, "/", species, "/", sel_ind, species,  "summary.png"), width=200, units="mm")  
 }
 
 #}
