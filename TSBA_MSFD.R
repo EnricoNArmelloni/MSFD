@@ -7,8 +7,8 @@ rm(list=ls())
 
 
 ###--- Set parameters
-sel_ind<-"L95"
-species="SOL"
+sel_ind<-"Pmega"
+species="MTS_simulated"
 area="GSA 17"
 mydir_input="~/CNR/MSFD/github/MSFD/Data"
 mydir_out="~/CNR/MSFD/github/MSFD/output" #### Directory for outputs
@@ -22,19 +22,27 @@ if(dir.exists(paste0(mydir_out,"/",species))==TRUE){
 }
 
 # Load data
+if(species =="MTS_simulated"){
+  LFD<-read_delim("~/CNR/MSFD/Squilla case study/Numbers_at_lenght_MTS.csv",   ";", escape_double = FALSE, trim_ws = TRUE)%>%dplyr::filter(Seas==4)%>%dplyr::select(-Area, -Bio_Pattern,BirthSeas,-Settlement,-Platoon,-Morph,-Seas,-Era,-Sex,-BirthSeas, -Time)%>%dplyr::filter(`Beg/Mid`=="B")%>%dplyr::select(- `Beg/Mid`)%>%gather(value=Number, key=Lenght_class,- Yr)%>%group_by(Yr)%>%dplyr::mutate(Frequency=Number/sum(Number), Lenght=as.numeric(Lenght_class)*10)
+}else{
 LFD<-read_excel(paste0(mydir_input, "/LFDs/LFD_", species ,".xlsx"))%>%
   dplyr::mutate(Yr=as.numeric(substr(str_remove(Survey, "SOLEMON"), 1,4)))%>%
   dplyr::rename("Lenght"="LengthClass", "Frequency"="AbunIndex")
   #dplyr::mutate(Lenght_class=Lenght_class/10)
+}
 
 pars<-read_excel(paste0(mydir_input, "/parameters.xlsx"))
 Linf=pars$Linf[pars$species==species]
 cutoff=1.1*((2/3)*Linf)
 
+#if(is.na(pars$minyear[pars$species==species])==FALSE){
+#  LFD<-LFD%>%dplyr::filter(Yr >= pars$minyear)
+#}
+
 #####---- Calculate Indicators
 
 # L95
-dati <- LFD %>%dplyr::mutate(Frequenza = round(LFD$Frequency*100))
+dati <- LFD %>%dplyr::mutate(Frequenza = round(Frequency*100))
 dati <- expandRows(dati[complete.cases(dati),] , "Frequenza")
 
 p<-c(0.95)
@@ -60,6 +68,9 @@ if(sel_ind=="L95"){
   Ind=PMega
 }
 
+if(is.na(pars$minyear[pars$species==species])==FALSE){
+  Ind<-Ind%>%dplyr::filter(Yr >= pars$minyear[pars$species==species])
+}
 
 ggplot() + geom_line(data=Ind,aes(x=Yr,y=Val)) + geom_hline(data=Ind, aes(yintercept = mean(Ind$Val)), color="red")+ggtitle(paste0(sel_ind, " from observed population,", species," " ,area))+ylab("cm")+xlab("Year")
 ggsave(paste0(mydir_out, "/", species, "/", sel_ind, species,  ".png"))
@@ -74,8 +85,11 @@ if(exists("bp.msfd")==FALSE){
   print("BP analysis did not succeed")
   BPA=-2
 }else{
-  
-plot(bp.msfd)
+
+png(filename=paste0(mydir_out, "/", species, "/", sel_ind, species,  "BP_selection.png"))
+  plot(bp.msfd)
+dev.off()
+
 
 n_breaks<-length(breakpoints(bp.msfd)[["breakpoints"]])
 bp<-breakpoints(bp.msfd)[[1]]
@@ -142,14 +156,20 @@ if(reg[["coefficients"]][2,4] >= 0.05){
 
 if(TA == 1 & BPA ==1 ){
   print("Final diagnosis: healthy stock")
+  res="Final diagnosis: healthy stock"
 } else if(TA == 1 & BPA !=1) {
   print("Final diagnosis: check management regimes")
+  res="Final diagnosis: check management regimes"
 }else if(TA == 0 & BPA ==0) {
   print("Final diagnosis: stock status stable")
+  res="Final diagnosis: stock status stable"
+  
 }else if(TA != 1 & BPA ==-1) {
   print("Final diagnosis: decrease pressure")
+  res="Final diagnosis: decrease pressure"
 }else{
   print("Final diagnosis: case not considered")
+  res="Final diagnosis: case not considered"
 }
 
 if(BPA == -2){
@@ -157,7 +177,14 @@ if(BPA == -2){
 }else{
 
 ### final plot
-dfpar_mean=dfpar%>%summarize(mean_95perc=mean(Val))%>%dplyr::mutate(Percentile="Mean 0.95")
+
+dfpar_mean=tibble(mean_95perc=mean(dfpar$Val), Percentile="Mean 0.95")
+
+if(nrow(dfpar) > 20 ){
+  spaz=5
+}else{
+  spaz=2
+}
 
 plotfin<-dfpar%>%ggplot(aes(x=Year, y=Val))+
   geom_rect(aes(xmin = min(BRP$Year), xmax = max(BRP$Year), ymin =mean(BRP$Val)-sd(BRP$Val), ymax = mean(BRP$Val)+sd(BRP$Val)),alpha = 0.01, fill = "blue")+
@@ -169,47 +196,47 @@ if(BPA == 0){
     geom_rect(aes(xmin = min(AP$Year), xmax = max(AP$Year), ymin =mean(AP$Val)-sd(AP$Val), ymax = mean(AP$Val)+sd(AP$Val)),alpha = 0.01, fill = "blue")+
     geom_segment(x=min(AP$Year),xend=max(AP$Year),y=mean(AP$Val), yend=mean(AP$Val), size=1, linetype = "dashed", color="blue")+
     geom_line()+ 
-    geom_hline(data=dfpar_mean, aes(yintercept = mean_95perc, color=Percentile), size=0.02, linetype = "dashed")+ 
+    #geom_hline(data=dfpar_mean, aes(yintercept = mean_95perc, color=Percentile), size=0.02, linetype = "dashed")+ 
     geom_vline(xintercept = dfpar[bp,]$Year, linetype="dashed", size=0.01)+
-    scale_x_continuous(breaks=seq(min(dfpar$Year),max(dfpar$Year),2))+
+    scale_x_continuous(breaks=seq(min(dfpar$Year),max(dfpar$Year),spaz))+
     theme_classic()+
-    annotate("text", x=max(dfpar$Year-2), y=max(dfpar$Val-5), label= "AP = RP") 
+    annotate("text", x=max(dfpar$Year-spaz), y=max(dfpar$Val-(0.1* max(dfpar$Val))), label= "BPA result: AP = RP") 
   
  }else if(BPA > 0){
   plotfin=plotfin+
     geom_rect(aes(xmin = min(AP$Year), xmax = max(AP$Year), ymin =mean(AP$Val)-sd(AP$Val), ymax = mean(AP$Val)+sd(AP$Val)),alpha = 0.01, fill = "green")+
     geom_segment(x=min(AP$Year),xend=max(AP$Year),y=mean(AP$Val), yend=mean(AP$Val), size=1, linetype = "dashed", color="green")+
     geom_line()+ 
-    geom_hline(data=dfpar_mean, aes(yintercept = mean_95perc, color=Percentile), size=0.02, linetype = "dashed")+ 
+    #geom_hline(data=dfpar_mean, aes(yintercept = mean_95perc, color=Percentile), size=0.02, linetype = "dashed")+ 
     geom_vline(xintercept = dfpar[bp,]$Year, linetype="dashed", size=0.01)+
-    scale_x_continuous(breaks=seq(min(dfpar$Year),max(dfpar$Year),2))+
+    scale_x_continuous(breaks=seq(min(dfpar$Year),max(dfpar$Year),spaz))+
     theme_classic()+
-    annotate("text", x=max(dfpar$Year-2), y=max(dfpar$Val-5), label= "AP > RP") 
+    annotate("text", x=max(dfpar$Year-spaz),  y=max(dfpar$Val-(0.1* max(dfpar$Val))), label= "BPA result: AP > RP") 
   
  }else if(BPA < 0){
   plotfin=plotfin+
     geom_rect(aes(xmin = min(AP$Year), xmax = max(AP$Year), ymin =mean(AP$Val)-sd(AP$Val), ymax = mean(AP$Val)+sd(AP$Val)),alpha = 0.01, fill = "red")+
     geom_segment(x=min(AP$Year),xend=max(AP$Year),y=mean(AP$Val), yend=mean(AP$Val), size=1, linetype = "dashed", color="red")+
     geom_line()+ 
-    geom_hline(data=dfpar_mean, aes(yintercept = mean_95perc, color=Percentile), size=0.02, linetype = "dashed")+ 
+    #geom_hline(data=dfpar_mean, aes(yintercept = mean_95perc, color=Percentile), size=0.02, linetype = "dashed")+ 
     geom_vline(xintercept = dfpar[bp,]$Year, linetype="dashed", size=0.01)+
-    scale_x_continuous(breaks=seq(min(dfpar$Year),max(dfpar$Year),2))+
+    scale_x_continuous(breaks=seq(min(dfpar$Year),max(dfpar$Year),spaz))+
     theme_classic()+
-    annotate("text", x=max(dfpar$Year-2), y=max(dfpar$Val-5), label= "AP < RP") 
+    annotate("text", x=max(dfpar$Year-15), y=max(dfpar$Val-(0.02* max(dfpar$Val))), label= "BPA result: AP < RP") 
  }
 
-?geom_text
+
 if(TA==0) {
- pf=plotfin+geom_smooth(method = "lm", se = FALSE, color="black", linetype="dashed", size=1.5, data=dfpar%>%dplyr::filter(Year >= 2016))+
-   annotate("text", x=max(dfpar$Year-2), y=max(dfpar$Val-3), label= "No sign trend in recent years") 
+ pf=plotfin+geom_smooth(method = "lm", se = TRUE, color="black", linetype="dashed", size=1.5, data=dfpar%>%dplyr::filter(Year >= 2015))+
+   annotate("text", x=max(dfpar$Year-15), y=max(dfpar$Val-(0.06* max(dfpar$Val))), label= "TA result: no sign trend in recent years") 
 }else if(TA == 1){
- pf=plotfin+geom_smooth(method = "lm", se = TRUE, color="green", size=1.5, data=dfpar%>%dplyr::filter(Year >= 2016))+
-   annotate("text", x=max(dfpar$Year-2), y=max(dfpar$Val-3), label= "Positive trend in recent years") 
+ pf=plotfin+geom_smooth(method = "lm", se = TRUE, color="green", size=1.5, data=dfpar%>%dplyr::filter(Year >= 2015))+
+   annotate("text", x=max(dfpar$Year-10), y=max(dfpar$Val-(0.15* max(dfpar$Val))), label= "TA result: positive trend in recent years") 
 }else if(TA == -1){
-  pf=plotfin+geom_smooth(method = "lm", se = TRUE, color="red", size=1.5, data=dfpar%>%dplyr::filter(Year >= 2016))+
-    annotate("text", x=max(dfpar$Year-2), y=max(dfpar$Val-3), label= "Negative trend in recent years") 
+  pf=plotfin+geom_smooth(method = "lm", se = TRUE, color="red", size=1.5, data=dfpar%>%dplyr::filter(Year >= 2015))+
+    annotate("text", x=max(dfpar$Year-10), y=max(dfpar$Val-(0.15* max(dfpar$Val))), label= "TA result: negative trend in recent years") 
 }
-pf+ggtitle(paste(species, area, sel_ind))
+pf+ggtitle(paste(species, area, sel_ind))+ annotate("text", x=max(dfpar$Year-15), y=max(dfpar$Val-(0.1* max(dfpar$Val))), label= res) 
 ggsave(paste0(mydir_out, "/", species, "/", sel_ind, species,  "summary.png"), width=200, units="mm")  
 }
 
