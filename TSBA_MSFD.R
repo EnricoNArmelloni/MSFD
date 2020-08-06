@@ -222,21 +222,21 @@ if(BPA == 0){
     geom_vline(xintercept = dfpar[bp,]$Year, linetype="dashed", size=0.01)+
     scale_x_continuous(breaks=seq(min(dfpar$Year),max(dfpar$Year),spaz))+
     theme_classic()+
-    annotate("text", x=max(dfpar$Year-15), y=max(dfpar$Val-(0.02* max(dfpar$Val))), label= "BPA result: AP < RP") 
+    annotate("text", x=max(dfpar$Year-spaz), y=max(dfpar$Val-(0.02* max(dfpar$Val))), label= "BPA result: AP < RP") 
  }
 
 
 if(TA==0) {
  pf=plotfin+geom_smooth(method = "lm", se = TRUE, color="black", linetype="dashed", size=1.5, data=dfpar%>%dplyr::filter(Year >= 2015))+
-   annotate("text", x=max(dfpar$Year-15), y=max(dfpar$Val-(0.06* max(dfpar$Val))), label= "TA result: no sign trend in recent years") 
+   annotate("text", x=max(dfpar$Year-spaz), y=max(dfpar$Val-(0.06* max(dfpar$Val))), label= "TA result: no sign trend in recent years") 
 }else if(TA == 1){
  pf=plotfin+geom_smooth(method = "lm", se = TRUE, color="green", size=1.5, data=dfpar%>%dplyr::filter(Year >= 2015))+
-   annotate("text", x=max(dfpar$Year-10), y=max(dfpar$Val-(0.15* max(dfpar$Val))), label= "TA result: positive trend in recent years") 
+   annotate("text", x=max(dfpar$Year-spaz), y=max(dfpar$Val-(0.15* max(dfpar$Val))), label= "TA result: positive trend in recent years") 
 }else if(TA == -1){
   pf=plotfin+geom_smooth(method = "lm", se = TRUE, color="red", size=1.5, data=dfpar%>%dplyr::filter(Year >= 2015))+
-    annotate("text", x=max(dfpar$Year-10), y=max(dfpar$Val-(0.15* max(dfpar$Val))), label= "TA result: negative trend in recent years") 
+    annotate("text", x=max(dfpar$Year-spaz), y=max(dfpar$Val-(0.15* max(dfpar$Val))), label= "TA result: negative trend in recent years") 
 }
-pf+ggtitle(paste(species, area, sel_ind))+ annotate("text", x=max(dfpar$Year-15), y=max(dfpar$Val-(0.1* max(dfpar$Val))), label= res) 
+pf+ggtitle(paste(species, area, sel_ind))+ annotate("text", x=max(dfpar$Year-spaz), y=max(dfpar$Val-(0.1* max(dfpar$Val))), label= res) 
 ggsave(paste0(mydir_out, "/", species, "/", sel_ind, species,  "summary.png"), width=200, units="mm")  
 }
 
