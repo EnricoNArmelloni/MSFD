@@ -7,11 +7,12 @@ rm(list=ls())
 
 
 ###--- Set parameters
-sel_ind<-"Pmega"
-species="MTS_simulated"
-area="GSA 17"
+sel_ind<-"BIOM"
+species="EDT"
+area="GSA18"
 mydir_input="~/CNR/MSFD/github/MSFD/Data"
 mydir_out="~/CNR/MSFD/github/MSFD/output" #### Directory for outputs
+survey="MEDITS"
 
 
 ###-- Run
@@ -22,14 +23,24 @@ if(dir.exists(paste0(mydir_out,"/",species))==TRUE){
 }
 
 # Load data
-if(species =="MTS_simulated"){
-  LFD<-read_delim("~/CNR/MSFD/Squilla case study/Numbers_at_lenght_MTS.csv",   ";", escape_double = FALSE, trim_ws = TRUE)%>%dplyr::filter(Seas==4)%>%dplyr::select(-Area, -Bio_Pattern,BirthSeas,-Settlement,-Platoon,-Morph,-Seas,-Era,-Sex,-BirthSeas, -Time)%>%dplyr::filter(`Beg/Mid`=="B")%>%dplyr::select(- `Beg/Mid`)%>%gather(value=Number, key=Lenght_class,- Yr)%>%group_by(Yr)%>%dplyr::mutate(Frequency=Number/sum(Number), Lenght=as.numeric(Lenght_class)*10)
-}else{
-LFD<-read_excel(paste0(mydir_input, "/LFDs/LFD_", species ,".xlsx"))%>%
-  dplyr::mutate(Yr=as.numeric(substr(str_remove(Survey, "SOLEMON"), 1,4)))%>%
-  dplyr::rename("Lenght"="LengthClass", "Frequency"="AbunIndex")
-  #dplyr::mutate(Lenght_class=Lenght_class/10)
+if(survey=="MEDITS"){
+  LFD<-read_csv(paste0("~/CNR/MSFD/github/MSFD/input/",area, "/", species,"/", species,"_", area, "__LFD.csv"))%>%dplyr::rename("Yr"="Year")
+  L95haul= read_csv(paste0("~/CNR/MSFD/github/MSFD/input/",area, "/", species,"/", species,"_", area, "_L95_haul.csv"))%>%dplyr::rename("Year"="year")
+  L95unc=read_csv(paste0("~/CNR/MSFD/github/MSFD/input/",area, "/", species,"/", species,"_", area,"_L95_plot.csv"))
+  BIOMhaul= read_csv(paste0("~/CNR/MSFD/github/MSFD/input/",area, "/", species,"/", species,"_", area, "_BIOM_haul.csv"))#%>%dplyr::rename("Year"="year")
+  BIOMunc=read_csv(paste0("~/CNR/MSFD/github/MSFD/input/",area, "/", species,"/", species,"_", area,"_BIOM_plot.csv"))%>%dplyr::rename("Year"="year", "Val"="total_biomass")
+  
+}else if (survey == "SOLEMON"){
+  if(species =="MTS_simulated"){
+    LFD<-read_delim("~/CNR/MSFD/Squilla case study/Numbers_at_lenght_MTS.csv",   ";", escape_double = FALSE, trim_ws = TRUE)%>%dplyr::filter(Seas==4)%>%dplyr::select(-Area, -Bio_Pattern,BirthSeas,-Settlement,-Platoon,-Morph,-Seas,-Era,-Sex,-BirthSeas, -Time)%>%dplyr::filter(`Beg/Mid`=="B")%>%dplyr::select(- `Beg/Mid`)%>%gather(value=Number, key=Lenght_class,- Yr)%>%group_by(Yr)%>%dplyr::mutate(Frequency=Number/sum(Number), Lenght=as.numeric(Lenght_class)*10)
+  }else{
+    LFD<-read_excel(paste0(mydir_input, "/LFDs/LFD_", species ,".xlsx"))%>%
+      dplyr::mutate(Yr=as.numeric(substr(str_remove(Survey, "SOLEMON"), 1,4)))%>%
+      dplyr::rename("Length"="LengthClass", "Frequency"="AbunIndex")
+    #dplyr::mutate(Lenght_class=Lenght_class/10)
+  }
 }
+
 
 pars<-read_excel(paste0(mydir_input, "/parameters.xlsx"))
 Linf=pars$Linf[pars$species==species]
@@ -49,23 +60,28 @@ p<-c(0.95)
 p_names <- map_chr(p, ~paste0( "perc", .x*100))
 p_funs <- map(p, ~partial(quantile, probs = .x, na.rm = TRUE)) %>% set_names(nm = p_names)
 
-L95 <-dati%>%dplyr::group_by(Yr)%>%dplyr::summarize_at(vars(Lenght), funs(!!!p_funs))%>%
+L95 <-dati%>%dplyr::group_by(Yr)%>%dplyr::summarize_at(vars(Length), funs(!!!p_funs))%>%
   dplyr::rename("Val"="perc95")
 
 
 # Pmega
 PMega<-LFD%>%dplyr::mutate(Frequency=ifelse(is.na(Frequency)==TRUE, 0, Frequency))%>%
-  dplyr::mutate(ms=ifelse(Lenght >= cutoff, "Y", "N"))%>%
+  dplyr::mutate(ms=ifelse(Length >= cutoff, "Y", "N"))%>%
   group_by(Yr, ms)%>%dplyr::summarize(Parz=sum(Frequency*100))%>%
   group_by(Yr)%>%dplyr::mutate(Tot = sum(Parz), Val= Parz/Tot)%>%dplyr::filter(ms=="Y")%>%
   dplyr::select(Yr, Val)
+
+# Biomass
+Biom=BIOMunc%>%dplyr::select(Year,Val)%>%dplyr::rename("Yr"="Year")
 
 
 ##### Analysis
 if(sel_ind=="L95"){
   Ind=L95
-}else{
+}else if(sel_ind=="PMega"){
   Ind=PMega
+}else{
+  Ind=Biom
 }
 
 if(is.na(pars$minyear[pars$species==species])==FALSE){
@@ -110,10 +126,10 @@ for(i in 1:n_breaks){
   RP<-tibble(Val=dfpar[brp[i]:brp[i+1],]$Val, Year=dfpar[brp[i]:brp[i+1],]$Year, RP=i)
   Lst[[i]]<-RP
 }
-BRP = rbindlist(Lst)%>%group_by(RP)%>%summarize(mean=mean(Val))%>%dplyr::filter(mean==max(mean))
-BRP = rbindlist(Lst)%>%dplyr::filter(RP==BRP$RP)
+BRP = rbindlist(Lst)%>%arrange(Year, RP)%>%dplyr::distinct(Year,.keep_all=TRUE)%>%group_by(RP)%>%summarize(mean=mean(Val))%>%dplyr::filter(mean==max(mean))
+BRP = rbindlist(Lst)%>%arrange(Year, RP)%>%dplyr::distinct(Year,.keep_all=TRUE)%>%dplyr::filter(RP==BRP$RP)
 
-AP=tibble(Val=dfpar[bp[n_breaks]:nrow(dfpar),]$Val, Year=dfpar[bp[n_breaks]:nrow(dfpar),]$Year) ## Assessment period is equal to last period of stability
+AP=tibble(Val=dfpar[(bp[n_breaks]+1):nrow(dfpar),]$Val, Year=dfpar[(bp[n_breaks]+1):nrow(dfpar),]$Year) ## Assessment period is equal to last period of stability
 
 variance_sign<-var.test(BRP$Val, AP$Val)[["p.value"]]
 
@@ -146,10 +162,10 @@ reg<-summary(lm(APTA$Val ~ APTA$Year))
 if(reg[["coefficients"]][2,4] >= 0.05){
   print("No significant trend detected in TA")
   TA=0
-}else if(reg[["coefficients"]][2,4] >= 0.05 & reg[["coefficients"]][2,1]>0 ){
+}else if(reg[["coefficients"]][2,4] <= 0.05 & reg[["coefficients"]][2,1]>0 ){
      print("Significant increasing trend detected in TA")
   TA=1
-}else if (reg[["coefficients"]][2,4] >= 0.05 & reg[["coefficients"]][2,1]<0 ){
+}else if (reg[["coefficients"]][2,4] <= 0.05 & reg[["coefficients"]][2,1]<0 ){
   print("Significant decreasing trend detected in TA")
   TA=-1
 }
@@ -187,7 +203,7 @@ if(nrow(dfpar) > 20 ){
 }
 
 plotfin<-dfpar%>%ggplot(aes(x=Year, y=Val))+
-  geom_rect(aes(xmin = min(BRP$Year), xmax = max(BRP$Year), ymin =mean(BRP$Val)-sd(BRP$Val), ymax = mean(BRP$Val)+sd(BRP$Val)),alpha = 0.01, fill = "blue")+
+  geom_rect(aes(xmin = min(BRP$Year), xmax = max(BRP$Year), ymin =mean(BRP$Val)-sd(BRP$Val), ymax = mean(BRP$Val)+sd(BRP$Val)),alpha = 0.01, fill = "darkgrey")+
   geom_segment(x=min(BRP$Year),xend=max(BRP$Year),y=mean(BRP$Val), yend=mean(BRP$Val), size=1, linetype = "dashed", color="blue")
 
 if(BPA == 0){
@@ -200,7 +216,7 @@ if(BPA == 0){
     geom_vline(xintercept = dfpar[bp,]$Year, linetype="dashed", size=0.01)+
     scale_x_continuous(breaks=seq(min(dfpar$Year),max(dfpar$Year),spaz))+
     theme_classic()+
-    annotate("text", x=max(dfpar$Year-spaz), y=max(dfpar$Val-(0.1* max(dfpar$Val))), label= "BPA result: AP = RP") 
+    annotate("text", x=max(dfpar$Year-spaz), y=max(dfpar$Val)-((max(dfpar$Val)-min(dfpar$Val))*0.02), label= "BPA result: AP = RP") 
   
  }else if(BPA > 0){
   plotfin=plotfin+
@@ -211,7 +227,7 @@ if(BPA == 0){
     geom_vline(xintercept = dfpar[bp,]$Year, linetype="dashed", size=0.01)+
     scale_x_continuous(breaks=seq(min(dfpar$Year),max(dfpar$Year),spaz))+
     theme_classic()+
-    annotate("text", x=max(dfpar$Year-spaz),  y=max(dfpar$Val-(0.1* max(dfpar$Val))), label= "BPA result: AP > RP") 
+    annotate("text", x=max(dfpar$Year-spaz),  y=max(dfpar$Val)-((max(dfpar$Val)-min(dfpar$Val))*0.02), label= "BPA result: AP > RP") 
   
  }else if(BPA < 0){
   plotfin=plotfin+
@@ -222,23 +238,24 @@ if(BPA == 0){
     geom_vline(xintercept = dfpar[bp,]$Year, linetype="dashed", size=0.01)+
     scale_x_continuous(breaks=seq(min(dfpar$Year),max(dfpar$Year),spaz))+
     theme_classic()+
-    annotate("text", x=max(dfpar$Year-spaz), y=max(dfpar$Val-(0.02* max(dfpar$Val))), label= "BPA result: AP < RP") 
+    annotate("text", x=max(dfpar$Year-spaz), y=max(dfpar$Val)-((max(dfpar$Val)-min(dfpar$Val))*0.02), label= "BPA result: AP < RP") 
  }
 
 
 if(TA==0) {
- pf=plotfin+geom_smooth(method = "lm", se = TRUE, color="black", linetype="dashed", size=1.5, data=dfpar%>%dplyr::filter(Year >= 2015))+
-   annotate("text", x=max(dfpar$Year-spaz), y=max(dfpar$Val-(0.06* max(dfpar$Val))), label= "TA result: no sign trend in recent years") 
+ pf=plotfin+geom_smooth(method = "lm", se = TRUE, color="black", linetype="dashed", size=1.5, data=dfpar%>%dplyr::filter(Year >= max(Year)-4))+
+   annotate("text", x=max(dfpar$Year-spaz), y=max(dfpar$Val)-((max(dfpar$Val)-min(dfpar$Val))*0.07), label= "TA result: no sign trend in recent years") 
 }else if(TA == 1){
- pf=plotfin+geom_smooth(method = "lm", se = TRUE, color="green", size=1.5, data=dfpar%>%dplyr::filter(Year >= 2015))+
-   annotate("text", x=max(dfpar$Year-spaz), y=max(dfpar$Val-(0.15* max(dfpar$Val))), label= "TA result: positive trend in recent years") 
+ pf=plotfin+geom_smooth(method = "lm", se = TRUE, color="green", size=1.5, data=dfpar%>%dplyr::filter(Year>= max(Year)-4))+
+   annotate("text", x=max(dfpar$Year-spaz), y=max(dfpar$Val)-((max(dfpar$Val)-min(dfpar$Val))*0.07), label= "TA result: positive trend in recent years") 
 }else if(TA == -1){
-  pf=plotfin+geom_smooth(method = "lm", se = TRUE, color="red", size=1.5, data=dfpar%>%dplyr::filter(Year >= 2015))+
-    annotate("text", x=max(dfpar$Year-spaz), y=max(dfpar$Val-(0.15* max(dfpar$Val))), label= "TA result: negative trend in recent years") 
+  pf=plotfin+geom_smooth(method = "lm", se = TRUE, color="red", size=1.5, data=dfpar%>%dplyr::filter(Year >= max(Year)-4))+
+    annotate("text", x=max(dfpar$Year-spaz), y=max(dfpar$Val)-((max(dfpar$Val)-min(dfpar$Val))*0.07), label= "TA result: negative trend in recent years") 
 }
-pf+ggtitle(paste(species, area, sel_ind))+ annotate("text", x=max(dfpar$Year-spaz), y=max(dfpar$Val-(0.1* max(dfpar$Val))), label= res) 
+pf+ggtitle(paste(species, area, sel_ind))+ annotate("text", x=max(dfpar$Year-spaz), y=max(dfpar$Val)-((max(dfpar$Val)-min(dfpar$Val))*0.12), label= res) 
 ggsave(paste0(mydir_out, "/", species, "/", sel_ind, species,  "summary.png"), width=200, units="mm")  
 }
 
 #}
+
 
