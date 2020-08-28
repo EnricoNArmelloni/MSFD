@@ -4,15 +4,15 @@ library(readxl)
 
 ### set parameters
 GSA<-"17"
-species<- "Eledone cirrhosa"
-sp_code<-"EOI"
+species<- "Solea aegyptiaca"
+sp_code<-"EGY"
 
 
 
 #### Imput Data
-Biomass <- read_csv("~/CNR/MSFD/data/MFSD_ANALISI MEDITS SOLEMON GSA 17/Output/GSA17/ITA_HRV_SVN/EOI/ELEDCIR_GSA17_ITA_HRV_SVN_BIOMASS.csv") ## Biomass trend as for MEDITS script
+Biomass <- read_csv("~/CNR/MSFD/data/MFSD_ANALISI MEDITS SOLEMON GSA 17/Output/GSA17/ITA/EGY/_GSA17_ITA_BIOMASS.csv") ## Biomass trend as for MEDITS script
 Catches <- read_excel("~/CNR/MSFD/data/Landings_CNR.xlsx", sheet = "Landings")%>%dplyr::filter(SPECIES == "EOI", AREA == "17")%>%dplyr::group_by(ANNO)%>%dplyr::summarize(Landing = sum(WEIGHT))
-LFD<- read_csv("~/CNR/MSFD/data/MFSD_ANALISI MEDITS SOLEMON GSA 17/Output/GSA17/ITA_HRV_SVN/EOI/ELEDCIR_GSA_17_ITA_HRV_SVN_LFDTOT_10-800m.csv")
+LFD<- read_csv("~/CNR/MSFD/data/MFSD_ANALISI MEDITS SOLEMON GSA 17/Output/GSA17/ITA/EGY/LFDTOT_10-800m.csv")
 ###
 
 ### Out creation
