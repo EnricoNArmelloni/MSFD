@@ -1,0 +1,339 @@
+---
+title: "Untitled"
+author: "Enrico N Armelloni"
+date: "1/10/2020"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(mgcv)
+library(fmsb)
+library(Hmisc)
+library(tidyverse)
+library(car)
+
+rm(list = ls())
+species="MUT"
+# setting the working directory and select the datasets
+area="GSA17_18"
+sel_ind<-"L95"
+timeframe="year" ## alternatives: "year", "haul"
+
+species_list=c("MUT")
+filename="_L95_plot.csv"
+setwd("~/CNR/MSFD/github/Standardization")
+
+L95= read_csv(paste0("~/CNR/MSFD/github/MSFD/input/",area, "/", species,"/",species,"_", area, filename))
+data <- read.table(paste0("TATB_L95_ ITA 17_18 ", species, ".csv"), sep=";",header = T)
+grid <- read.table("Adriatic_Grid.csv", sep=",",header = T)%>%dplyr::rename("X"="lon", "Y"="lat")
+
+data$depth <- data$meandepth
+data$swept_area <- data$distance*data$wing_opening/10000000
+data$kg_km2 <-data$ptot/data$swept_area/1000
+data$n_km2 <- data$nbtot/data$swept_area
+data$hour<-as.numeric(as.character(ifelse(nchar(data$shooting_time)==3, substr(data$shooting_time,1,1), substr(data$shooting_time,1,2))))
+GSA  <- unique(data$area)
+data=data%>%dplyr::rename("X"="TA_lon_fin", "Y"="TA_lat_fin")
+data$Indicator=data$perc95
+data <- data.frame(Indicator = data$perc95, 
+                   X = data$X, 
+                   Y = data$Y, 
+                   depth = data$depth, 
+                   year = as.numeric(data$year), 
+                   month = as.numeric(data$month),
+                   vessel = as.numeric(data$vessel),
+                   hour = data$hour) #SST = data$SST
+data=data%>%dplyr::filter(!is.na(depth))
+for (i in 1:nrow(data)){
+if (data$depth[i] >= 10 & data$depth[i] < 50){
+data$stratum[i]=1
+} else if (data$depth[i] >= 50 & data$depth[i] < 100) {
+data$stratum[i]=2
+} else if (data$depth[i] >= 100 & data$depth[i] < 200) {
+data$stratum[i]=3
+} else if (data$depth[i] >= 200 & data$depth[i] < 500){
+data$stratum[i]=4
+} else if (data$depth[i] >= 500 & data$depth[i] <= 800) {
+data$stratum[i]=5}
+}
+```
+
+## Red mullet in GSA 17-18
+
+Dati utilizzati: MEDITS DATA 1994-2017 (solo cale positive, con catture triglia di fango) 
+
+Nelle GSA 17 e 18 la triglia si concentra sulla piattaforma continentale, soprattutto entro i 100 metri di profondità. 
+
+
+```{r , echo=FALSE,fig.dim = c(8, 6), warning = FALSE}
+ggplot(data=data, aes(x=depth,y= Indicator)) + geom_histogram(stat="identity",colour = "blue", fill = "blue", binwidth = 0.5) + facet_grid(stratum~ .)
+```
+
+Anche a causa della conformazione del bacino le densità registrate oltre i 100 metri sono esigue ma concentrate spazialmente nella porzione meridionale, quindi si decide di includere nelle analisi le cale comprese nella batimetria < 200 m. Si nota però una forte presenza di valori outlier, concentrati nelle profondità più basse.
+
+
+
+
+
+
+```{r , echo=FALSE,fig.dim = c(8, 6), warning = FALSE}
+data <-  data[data$depth<200,]
+
+par(mfrow=c(1,2))
+plot(data$depth, data$Indicator)
+plot(data$year, data$Indicator)
+```
+
+In seguito alla discussione circa l'influenza delle reclute, concentrate nelle fasce batimetriche inferiori, per le seguenti analisi si sono escluse le cale con profondità media < 50m.
+
+
+```{r , echo=FALSE,fig.dim = c(8, 6), warning = FALSE}
+data <-  data[data$depth>=50,]
+# data <-  data[data$kg_km2<500,]
+data<-data%>%dplyr::filter(!is.na(Indicator))
+ggplot(data=data, aes(x=depth,y= Indicator)) + geom_histogram(stat="identity",colour = "blue", fill = "blue", binwidth = 0.5) + facet_grid(stratum~ .)
+
+```
+
+
+Plottando l’indicatore L95 per cala contro le variabili anno e profondità si osserva che gli outlier si sono fortemente ridotti.
+
+
+```{r , echo=FALSE,fig.dim = c(8, 6), warning = FALSE}
+par(mfrow=c(1,2))
+plot(data$depth, data$Indicator)
+plot(data$year, data$Indicator)
+```
+
+Per investigare ulteriormente la relazione tra mensilità, indicatore e profondità della cala si presenta anche un coplot, dove emerge la presenza di valori bassi dell’indicatore anche a profondità > 100 metri durante i mesi estivi (soprattutto giugno e luglio). 
+
+
+```{r , echo=FALSE,fig.dim = c(8, 6), warning = FALSE}
+coplot(Indicator ~ depth | factor(month), data = data)
+```
+
+Sulla base di quanto svolto dai colleghi, si è effettuata una step forward model selection per identificare il modello GAM migliore in termini di fitting, residui e statistiche (AIC, GCV). Prima di questo, è stata fatta una esplorazione dei dati per identificare potenziali collinearità tra variabili indipendenti. 
+Il seguente pairplot mostra come ci sia potenziale collinearità tra le variabili Lat, Lon, vessel (ogni GSA ha la propria imbarcazione. 
+
+
+```{r , echo=FALSE,fig.dim = c(10, 10), warning = FALSE}
+panel.smooth2<-function (x, y, col = par("col"), bg = NA, pch = par("pch"), 
+                         cex = 1, col.smooth = "red", span = 2/3, iter = 3, ...) 
+{
+  points(x, y, pch = pch, col = col, bg = bg, cex = cex)
+  ok <- is.finite(x) & is.finite(y)
+  if (any(ok)) 
+    lines(stats::lowess(x[ok], y[ok], f = span, iter = iter), 
+          col = 1, ...)
+}
+
+panel.cor <- function(x, y, digits = 2, prefix = "", cex.cor ,...)
+{
+  usr <- par("usr"); on.exit(par(usr))
+  par(usr = c(0, 1, 0, 1))
+  #r <- abs(cor(x, y))
+  r <- (cor(x, y))
+  #txt <- format(c(r, 0.123456789), digits = digits)[1]
+  txt <- format(c(r, 0.123456789), digits = 1)[1]
+  txt <- paste(prefix, txt, sep = "")
+  if(missing(cex.cor)) cex.cor <- 0.8/strwidth(txt)
+  #text(0.5, 0.5, txt, cex = cex.cor * r)
+  text(0.5, 0.5, txt, cex = 3*abs(r))
+}
+
+panel.hist <- function(x, ...)
+{
+  usr <- par("usr"); on.exit(par(usr))
+  par(usr = c(usr[1:2], 0, 1.5) )
+  h <- hist(x, plot = FALSE)
+  breaks <- h$breaks; nB <- length(breaks)
+  y <- h$counts; y <- y/max(y)
+  rect(breaks[-nB], 0, breaks[-1], y, col = "white", ...)
+}
+
+#tiff("pairplot.tiff", height = 20, width = 20, units = "cm", compression = "lzw", res = 600) 
+#op<-par(mfrow=c(1,1), mar=c(4,4,2,2))
+Z<-cbind(data$X, data$Y, data$depth, data$year, data$month, data$hour, data$vessel)
+colnames(Z)<- c("Lon", "Lat", "Depth", "Year", "Month", "Hour", "Vessel")
+pairs(Z,las=1 ,lower.panel=panel.smooth2, upper.panel=panel.cor, diag.panel=panel.hist, cex=0.9, cex.labels=1.0)
+```
+
+Analisi VIF
+
+```{r , echo=FALSE,fig.dim = c(8, 6), warning = FALSE}
+mod_lm <- lm(Indicator ~ X + Y + depth + year + month + hour + vessel, data=data)
+vif<-vif(lm(mod_lm, data = data)); vif
+```
+
+La variabile vessel viene esclusa
+
+ Alla fine del processo di model selection, il modello GAM migliore è risultato il seguente:
+
+
+
+```{r , echo=FALSE,fig.dim = c(8, 6), warning = FALSE}
+mod<- gam(Indicator ~ s(year, k=16)+ factor(month)+s(X,Y) +s(depth) +s(depth,by= month), na.action = na.omit, data = data)
+
+summary(mod)
+```
+
+
+Analisi grafica residui – omogeneità
+I residui sono ben distribuiti anche se piuttosto ampi. Si evidenziano alcuni valori negativi outlier.
+
+
+```{r , echo=FALSE,fig.dim = c(8, 6), warning = FALSE}
+E.m4<- resid(mod, type = "pearson")
+Fit.m4 <- fitted(mod)
+#e4<-resid(M3)
+par(mfrow=c(1,1))
+plot(x = Fit.m4, y = E.m4, xlab = "Fitted values",
+     ylab = "Residuals")
+#plot(x = Fit.m4, y = E.m4, xlab = "Fitted values",
+#    ylab = "Residuals", main = "logKG.KM2")
+abline(0,0)
+tmp <- loess(E.m4 ~Fit.m4 ,span=0.75)
+tmp2 <- predict(tmp,se=T)
+I1 <- order(Fit.m4)
+lines(Fit.m4[I1], tmp2$fit[I1], lty=1)
+lines(Fit.m4[I1], tmp2$fit[I1] + 2*tmp2$se.fit[I1], lty = 2)
+lines(Fit.m4[I1], tmp2$fit[I1] - 2*tmp2$se.fit[I1], lty = 2)
+```
+
+
+Residui per fattore
+Nonostante alcuni valori outlier, soprattutto riguardo al fattore mese, non si osservano particolari pattern
+
+```{r , echo=FALSE,fig.dim = c(8, 6), warning = FALSE}
+plot_variabili=function(beta, teta){
+  var1 <- beta
+  plot(x = var1, y = E.m4, xlab = teta,
+       ylab = "Residuals")
+  abline(0,0)
+  tmp <- loess(E.m4 ~var1 ,span=0.8)
+  tmp2 <- predict(tmp,se=T)
+  I1 <- order(var1)
+  lines(var1[I1], tmp2$fit[I1], lty=1)
+  lines(var1[I1], tmp2$fit[I1] + 2*tmp2$se.fit[I1], lty = 2)
+  lines(var1[I1], tmp2$fit[I1] - 2*tmp2$se.fit[I1], lty = 2)
+  
+}
+
+par(mfrow=c(2,2))
+plot_variabili(data$year, "Year")
+plot_variabili(data$Y, "Lat")
+plot_variabili(data$X, "Lon")
+plot_variabili(data$depth, "depth")
+
+
+
+```
+
+```{r , echo=FALSE,fig.dim = c(8, 6), warning = FALSE}
+plot_variabili(data$month, "month")
+```
+
+
+
+Analisi residui – normalità
+Si evidenzia una coda nel QQ-plot
+
+```{r , echo=FALSE,fig.dim = c(8, 6), warning = FALSE}
+par(mar=c(5,5,2,2))
+hist(E.m4, ylab = "Frequency", xlab = "Residuals", las=1,breaks=16, cex.lab=1.1, cex.axis=1.1, main=NULL)
+par(mar=c(5,5,2,2))
+qqnorm(E.m4, main=NULL, lwd=1.5,cex.lab=1.1, las=1,cex.axis=1, bty="l", xlab="Theoretical quantiles", ylab="Std. Dev. quantiles")
+abline(0.0,1.3, lty=1, lwd=1.5)
+```
+
+
+
+Plot variabili indipendenti incluse nel modello finale
+
+```{r , echo=FALSE,fig.dim = c(8, 6), warning = FALSE}
+par(mfrow=c(2,3))
+plot(mod)
+termplot(mod, se=T)
+```
+
+
+Il seguente plot mostra la serie temporale del L95 medio per anno (in blu), i risultati del modello (in rosso) ed i risultati della prova di standardizzazione sul mese di luglio. 
+
+```{r , echo=FALSE,fig.dim = c(8, 6), warning = FALSE}
+################################# Calculate Index
+analysis_stratum1 <- T
+analysis_stratum2 <- T
+analysis_stratum3 <- T
+analysis_stratum4 <- F
+analysis_stratum5 <- F
+
+stratum_1 <- grid[grid$depth >= 10 & grid$depth < 50, ]
+stratum_2 <- grid[grid$depth >= 50 & grid$depth < 100,]
+stratum_3 <- grid[grid$depth >= 100 & grid$depth < 200,]
+stratum_4 <- grid[grid$depth >= 200 & grid$depth < 500,]
+stratum_5 <- grid[grid$depth >= 500 & grid$depth <= 800,]
+
+res_table <- data.frame(seq(1994,2017, 1))
+res_table$index_1 <- NA
+res_table$index_2 <- NA
+res_table$index_3 <- NA
+res_table$index_4 <- NA
+res_table$index_5 <- NA
+
+se_table <- data.frame(seq(1994,2017, 1))
+se_table$index_1 <- NA
+se_table$index_2 <- NA
+se_table$index_3 <- NA
+se_table$index_4 <- NA
+se_table$index_5 <- NA
+se_table$se <- NA
+
+stratification <- read.table("~/CNR/MSFD/github/Standardization/Stratification_Scheme.csv", sep=";", header=T)
+area_s1 <- sum(stratification[stratification$GSA %in% GSA & stratification$CODE==1,5])
+area_s2 <- sum(stratification[stratification$GSA%in%GSA & stratification$CODE==2,5])
+area_s3 <- sum(stratification[stratification$GSA%in%GSA & stratification$CODE==3,5])
+area_s4 <- sum(stratification[stratification$GSA%in%GSA & stratification$CODE==4,5])
+area_s5 <- sum(stratification[stratification$GSA%in%GSA & stratification$CODE==5,5])
+
+areas=tibble(Stratum=c("s1", "s2", "s3", "s4", "s5"), Area=c(area_s1,area_s2,area_s3,area_s4,area_s5))
+
+timeseries_observed=data%>%
+  dplyr::mutate(Stratum=ifelse(depth>=10 & depth <50, "s1",ifelse(depth>=50 & depth <100,"s2",ifelse(depth>=100 & depth <200,"s3", "s4"))))%>%
+  dplyr::left_join(areas, by="Stratum")%>%
+  dplyr::group_by(year, Stratum)%>%
+  dplyr::mutate(mean_val=mean(Indicator)*Area)%>%
+  dplyr::distinct(year,stratum,.keep_all=TRUE)%>%
+  dplyr::group_by(year)%>%
+  dplyr::summarize(Indicator_year=sum(mean_val)/sum(Area))%>%dplyr::mutate(Data="Time Series")
+
+data$pred=predict(mod)
+
+timeseries_predicted=data%>%
+  dplyr::mutate(Stratum=ifelse(depth>=10 & depth <50, "s1",ifelse(depth>=50 & depth <100,"s2",ifelse(depth>=100 & depth <200,"s3", "s4"))))%>%
+  dplyr::left_join(areas, by="Stratum")%>%
+  dplyr::group_by(year, Stratum)%>%
+  dplyr::mutate(mean_val=mean(pred)*Area)%>%
+  dplyr::distinct(year,stratum,.keep_all=TRUE)%>%
+  dplyr::group_by(year)%>%
+  dplyr::summarize(Indicator_year=sum(mean_val)/sum(Area))%>%dplyr::mutate(Data="Prediction")
+
+
+newdat=bind_rows(timeseries_observed, timeseries_predicted)
+
+res_table=read.csv(paste0("~/CNR/MSFD/github/Standardization/MUT_standardized_july_depthover50.csv"))%>%
+  dplyr::mutate(Data="Standardized")
+names(res_table)[1]<-"year"
+names(res_table)[7]<-paste("Indicator_year")
+res_table=res_table[,c(1, 7, 8)]
+
+# 100-200m
+newdat=bind_rows(newdat,res_table%>%dplyr::select(names(newdat)) )
+
+ggplot()+geom_line(aes(x=year, y=Indicator_year, color=Data), data=newdat)+geom_point(aes(x=year, y=Indicator_year, color=Data), data=newdat)+theme_bw()+ylab("L95 (mm)")+scale_x_continuous(breaks = seq(1994,2017,2))+ggtitle("Depth >= 50 & Depth < 200")
+
+
+```
+
+
+
