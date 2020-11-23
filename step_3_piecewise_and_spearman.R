@@ -97,7 +97,19 @@ if(stand=="Y"){
   BRP=data%>%
     dplyr::filter(year <= round(as.numeric(bp[2])))
   
-  variance_sign<-var.test(BRP$Indicator, AP$Indicator)[["p.value"]]
+  periods=tibble(Indicator=c(BRP$Indicator, AP$Indicator), dat=c(rep("BRP", nrow(BRP)), rep("AP", nrow(AP))))
+  
+  ## Identify larger variance for set order in var.test
+  large_period=periods%>%
+    dplyr::group_by(dat)%>%
+    dplyr::summarise(var=var(Indicator))%>%
+    arrange(desc(var))
+  
+  var1=periods%>%dplyr::filter(dat==large_period[[1,1]])
+  var2=periods%>%dplyr::filter(dat!=large_period[[1,1]])
+  
+  
+  variance_sign<-var.test(var1$Indicator, var2$Indicator, alternative="greater")[["p.value"]]
   
   if(variance_sign >= 0.05){
     ttest<-t.test(BRP$Indicator , AP$Indicator,  var.equal = TRUE)
