@@ -10,7 +10,7 @@ set.seed(123)
 ###--- Set parameters
 # setting the working directory and select the datasets
 #### Settings
-sspp= "RJC"
+sspp= "MUT"
 
 gsa="17" #assign gsa code to input file name (i.e. 9_11_ for two GSAs) 
 
@@ -18,7 +18,7 @@ sel="selection"## alternatives: "selection" ; "total"
 
 input_dir="~/CNR/MSFD/github/release"
 
-variables="year"#c("year", "month")
+variables="year" #c("year", "month")
 
 stand="Y"
 
@@ -87,7 +87,7 @@ if(stand=="Y"){
   dev.off()
   
   
-  
+  summary(my.seg)
   
   ###### Test
   bp=my.seg$psi
@@ -179,7 +179,7 @@ if(stand=="Y"){
       theme_classic()+
       annotate("text", x=max(dat$year-spaz), y=max(dat$L95)-((max(dat$L95)-min(dat$L95))*0.02), label= lbl)+
       ggtitle(paste(sspp,"GSA",gsa,"segmented regression results"))+
-      geom_smooth(data=dataplot%>%dplyr::filter(source=="fitted"),aes(year, L95, color=source), span = 0.5 )
+      geom_smooth(data=dataplot%>%dplyr::filter(source=="fitted"),aes(year, L95, color=source), span = 0.5 ,stat="identity")
   }
   
   if(regr.p >= 0.05){
