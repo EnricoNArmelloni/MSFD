@@ -46,8 +46,10 @@ input_dir="~/CNR/MSFD/github/release/data" ### folder where are stored TA TB TC 
 output_dir="~/CNR/MSFD/github/release" # folder for outputs
 
 # need to exclude strata? If yes, activate line 50 and type the strata to include
-selection=NA
-#selection=c("B", "C")
+#selection=NA
+selection=c("B", "C")
+
+survey="medits"
 
 sspp= "MUT" # three alpha code of your species
 
@@ -84,39 +86,48 @@ gen=unique(sp_list$gen[which(sp_list$`3A_CODE`==alpha_code)])
 spec=unique(sp_list$spec[which(sp_list$`3A_CODE`==alpha_code)])
 
 # Extract data ####
-TAn <- fread("medits_ta.csv")
+TAn <- fread(paste0(survey, "_ta.csv"))
 TAn <- as.data.frame(subset(TAn, (area %in% areacode) & (country %in% countrycode))) %>%dplyr::filter(validity == "V")
 droplevels(TAn)
 
-TBn <- fread("medits_tb.csv")
+TBn <- fread(paste0(survey, "_tb.csv"))
 TBn <- as.data.frame(subset(TBn, (area %in% areacode) & (country %in% countrycode) & (genus %in% gen) & (species %in% spec)))
 droplevels(TBn)
 
-TCn <- fread("medits_tc.csv")
+TCn <- fread(paste0(survey, "_tc.csv"))
 TCn <- as.data.frame(subset(TCn, (area %in% areacode) & (country %in% countrycode) & (genus %in% gen) & (species %in% spec)))
 droplevels(TCn)
 
-### FIXING MISTAKES ###
-# Please activate code needed in your own stock #
-# There are mistakes in length class measure (e.g. HRV 2016 or ITA17 2017 for NEP)
-#TCn$length_class=ifelse(TCn$country=="HRV" & TCn$year==2016 & alpha_code=="NEP",TCn$length_class/10,TCn$length_class)
-#TCn$length_class=ifelse(TCn$country=="HRV" & alpha_code=="NEP" & TCn$length_class>100,TCn$length_class/10,TCn$length_class)
-#TCn$length_class=ifelse(TCn$country=="ITA" & alpha_code=="NEP" & TCn$length_class>100,TCn$length_class/10,TCn$length_class)
-#TCn$length_class=ifelse(TCn$country=="ESP" & alpha_code=="NEP" & TCn$length_class>100,TCn$length_class/10,TCn$length_class)
- TCn$length_class=ifelse(TCn$country=="ITA" & alpha_code=="HKE" & TCn$length_class>900,TCn$length_class/10,TCn$length_class)
-#TCn$length_class=ifelse(TCn$country=="ITA" & alpha_code=="DPS" & TCn$length_class>50,TCn$length_class/10,TCn$length_class)
-#TCn$length_class=ifelse(TCn$country=="ESP" & alpha_code=="ARA" & TCn$area==5 & TCn$length_class>80,TCn$length_class/10,TCn$length_class)
-#TCn$length_class=ifelse(TCn$country=="ESP" & alpha_code=="ARA" & TCn$area==6 & TCn$length_class>80,TCn$length_class/10,TCn$length_class)
 
-# There are mistakes in length class value in MTS GSA 17 ITA Years 2012:2016 (converting TL in CL based on values find in paper)
-# TCn$length_class=ifelse(TCn$country=="ITA" & TCn$year==2012 & TCn$length_class>50,as.integer(exp((log(TCn$length_class)-log(7.3949))/0.8693),round(0)),TCn$length_class)
-# TCn$length_class=ifelse(TCn$country=="ITA" & TCn$year==2013 & TCn$length_class>50,as.integer(exp((log(TCn$length_class)-log(7.3949))/0.8693)),TCn$length_class)
-# TCn$length_class=ifelse(TCn$country=="ITA" & TCn$year==2014 & TCn$length_class>50,as.integer(exp((log(TCn$length_class)-log(7.3949))/0.8693)),TCn$length_class)
-# TCn$length_class=ifelse(TCn$country=="ITA" & TCn$year==2015 & TCn$length_class>50,as.integer(exp((log(TCn$length_class)-log(7.3949))/0.8693)),TCn$length_class)
-# TCn$length_class=ifelse(TCn$country=="ITA" & TCn$year==2016 & TCn$length_class>50,as.integer(exp((log(TCn$length_class)-log(7.3949))/0.8693)),TCn$length_class)
+
+if(survey=="medits"){
+  
+  ### FIXING MISTAKES ###
+  # Please activate code needed in your own stock #
+  # There are mistakes in length class measure (e.g. HRV 2016 or ITA17 2017 for NEP)
+  #TCn$length_class=ifelse(TCn$country=="HRV" & TCn$year==2016 & alpha_code=="NEP",TCn$length_class/10,TCn$length_class)
+  #TCn$length_class=ifelse(TCn$country=="HRV" & alpha_code=="NEP" & TCn$length_class>100,TCn$length_class/10,TCn$length_class)
+  #TCn$length_class=ifelse(TCn$country=="ITA" & alpha_code=="NEP" & TCn$length_class>100,TCn$length_class/10,TCn$length_class)
+  #TCn$length_class=ifelse(TCn$country=="ESP" & alpha_code=="NEP" & TCn$length_class>100,TCn$length_class/10,TCn$length_class)
+  TCn$length_class=ifelse(TCn$country=="ITA" & alpha_code=="HKE" & TCn$length_class>900,TCn$length_class/10,TCn$length_class)
+  #TCn$length_class=ifelse(TCn$country=="ITA" & alpha_code=="DPS" & TCn$length_class>50,TCn$length_class/10,TCn$length_class)
+  #TCn$length_class=ifelse(TCn$country=="ESP" & alpha_code=="ARA" & TCn$area==5 & TCn$length_class>80,TCn$length_class/10,TCn$length_class)
+  #TCn$length_class=ifelse(TCn$country=="ESP" & alpha_code=="ARA" & TCn$area==6 & TCn$length_class>80,TCn$length_class/10,TCn$length_class)
+  
+  # There are mistakes in length class value in MTS GSA 17 ITA Years 2012:2016 (converting TL in CL based on values find in paper)
+  # TCn$length_class=ifelse(TCn$country=="ITA" & TCn$year==2012 & TCn$length_class>50,as.integer(exp((log(TCn$length_class)-log(7.3949))/0.8693),round(0)),TCn$length_class)
+  # TCn$length_class=ifelse(TCn$country=="ITA" & TCn$year==2013 & TCn$length_class>50,as.integer(exp((log(TCn$length_class)-log(7.3949))/0.8693)),TCn$length_class)
+  # TCn$length_class=ifelse(TCn$country=="ITA" & TCn$year==2014 & TCn$length_class>50,as.integer(exp((log(TCn$length_class)-log(7.3949))/0.8693)),TCn$length_class)
+  # TCn$length_class=ifelse(TCn$country=="ITA" & TCn$year==2015 & TCn$length_class>50,as.integer(exp((log(TCn$length_class)-log(7.3949))/0.8693)),TCn$length_class)
+  # TCn$length_class=ifelse(TCn$country=="ITA" & TCn$year==2016 & TCn$length_class>50,as.integer(exp((log(TCn$length_class)-log(7.3949))/0.8693)),TCn$length_class)
+  
+}
+
+
+
 
 # read in stratification table of the survey Copyrigth Tristan Rouyer
-stratification_scheme <- fread("MEDITS_Strata.csv")
+stratification_scheme <- fread(paste0(survey,"_Strata.csv"))
 stratum<-stratification_scheme[stratification_scheme$AREA %in% areacode,]#extraction based on gSA
 stratum<-stratum[stratum$COUNTRY %in% countrycode,]# extraction based on country
 
@@ -129,13 +140,28 @@ TAn=cbind(TAn,meandepth,sqkm,id2)
 TAn$strata[]=TAn$nstrate[]
 
 
-##Assign strata code based on the meandepth value and not on "codestrata"
-for (i in 1:length(TAn$strata))
-if(TAn$meandepth[i]>0 & TAn$meandepth[i] < 51){TAn$strata[i]="A"}else{
-  if(TAn$meandepth[i]>=51 & TAn$meandepth[i] < 101){TAn$strata[i]="B"}else{
-    if(TAn$meandepth[i]>=101 & TAn$meandepth[i] < 201){TAn$strata[i]="C"}else{
-      if(TAn$meandepth[i]>=201 & TAn$meandepth[i] <501){TAn$strata[i]="D"}else{
-        TAn$strata[i]="E"}}}}
+if(survey=="medits"){
+  
+  ##Assign strata code based on the meandepth value and not on "codestrata"
+  for (i in 1:length(TAn$strata))
+    if(TAn$meandepth[i]>0 & TAn$meandepth[i] < 51){TAn$strata[i]="A"}else{
+      if(TAn$meandepth[i]>=51 & TAn$meandepth[i] < 101){TAn$strata[i]="B"}else{
+        if(TAn$meandepth[i]>=101 & TAn$meandepth[i] < 201){TAn$strata[i]="C"}else{
+          if(TAn$meandepth[i]>=201 & TAn$meandepth[i] <501){TAn$strata[i]="D"}else{
+            TAn$strata[i]="E"}}}}
+  
+} else if(survey=="solemon"){
+  
+  ##Assign strata code based on the meandepth value and not on "codestrata"
+  for (i in 1:length(TAn$strata))
+    if(TAn$meandepth[i]>0 & TAn$meandepth[i] < 31){TAn$strata[i]="A"}else{
+      if(TAn$meandepth[i]>=31 & TAn$meandepth[i] < 51){TAn$strata[i]="B"}else{
+        if(TAn$meandepth[i]>=51 & TAn$meandepth[i] < 121){TAn$strata[i]="C"}else{
+          if(TAn$meandepth[i]>=121 & TAn$meandepth[i] <201){TAn$strata[i]="D"}else{
+            TAn$strata[i]="E"}}}}
+  
+}
+
 
 #prepare TB for next elaborations#
 id2=paste(TBn$country,TBn$area,TBn$year,TBn$haul_number,sep="")
@@ -391,6 +417,7 @@ plo_biom=ggplot(BIOMASS, aes(x=year, y=total_biomass)) +
 plo_biom
 
 if(is.na(selection)==F){
+  selection_txt=paste0(selection, collapse=" , ")
   
   biom_var_sel=var2a%>%
     dplyr::filter(stratum %in% selection)%>%
@@ -419,7 +446,7 @@ if(is.na(selection)==F){
     geom_errorbar(aes(ymin=biomass-st_dev, ymax=biomass+st_dev), width=.2,
                   position=position_dodge(0.05),linetype = "dashed",size=0.75)+
     ylab("kg/km2")+
-    ggtitle(paste0(gen,spec,"_","GSA",gsa,"_",state," Biomass total and selected strata"))
+    ggtitle(paste0(gen,spec,"_","GSA",gsa,"_",state," Biomass total and selected strata: ", selection_txt))
   
   plo_biom
 
@@ -627,7 +654,7 @@ if(is.na(selection)==F){
     geom_errorbar(aes(ymin=Val-stdev_tot, ymax=Val+stdev_tot), width=.2,
                   position=position_dodge(0.05),linetype = "dashed",size=0.75)+
     ylab("mm")+
-    ggtitle(paste0(gen,spec,"_","GSA",gsa,"_",state," L95 total and selected strata"))
+    ggtitle(paste0(gen,spec,"_","GSA",gsa,"_",state," L95 total and selected strata:" , selection_txt))
   
   
 
