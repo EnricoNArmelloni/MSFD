@@ -9,11 +9,11 @@ rm(list = ls())
 #### Settings
 input_dir="~/CNR/MSFD/github/release"
 
-sspp= "HKE"
+sspp= "MUT" ## set species 3 alpha code
 
 gsa="17" # Assign gsa code to output file name (i.e. 9_11_ for two GSAs) 
 
-sel="total" ## set kind of input file. Alternatives: "selection" ; "total"
+sel="sizethreshold" ## set kind of input file. Alternatives: "selection" ; "total; sizethreshold"
 
 st_month=6 ## Select month for standardization
 
