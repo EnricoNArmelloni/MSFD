@@ -2,7 +2,7 @@
 In this repo are hosted codes to arrange datasets and perform indicators calculation.
 
 
-## Script 1 
+## Script 1 (step1_indexcalculation)
 
 ### Description:
  Starting from medits TA, TB and TC, the code calculate Biomass Index, L95 and some other useful information. Script 1 retain the possibility to calculate the L95 on the total population or on individuals larger than a threshold specified by the user.
@@ -14,7 +14,7 @@ Size threshold setting are at line 52 (seize_thresh), here you can put what is t
 For use the script, please carefully read and set the parameters in the section "Settings", lines 42-70. Then, you can simply run the code.
 
 
-## Script 2
+## Script 2 (step2_gam)
 
 ### Description
 This code serve to identify and fit a gam model, and allows to create standardized outputs for data exploration and diagnostic. It also permit to predict the timeseries using a standard value for sampling moth. The code must be run after the script 1, as it take as input data the outputs of script 1. 
@@ -25,7 +25,7 @@ Line 16 serve to change the input file type, basing on the setting choosen for c
 To use the script, read and set the parameters in the section "Settings" and the you have to go line by line to choose the best model for your species and area.
 
 
-## Script 3
+## Script 3 (step3_piecewise_and_spearman)
 
 ### Description
 Starting from code 1 output, the code performs a segmented regression and a Spearman rank correlation analysis. 
