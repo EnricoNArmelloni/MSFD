@@ -47,9 +47,13 @@ output_dir="~/CNR/MSFD/github/release" # folder for outputs
 
 # need to exclude strata? If yes, activate line 50 and type the strata to include
 #selection=NA
-selection=c("B", "C")
+selection=NA#c("B", "C")
+
+size_thresh = 100 #in mm
 
 survey="medits"
+
+#compile_AMSY="N" # parameter for future usage
 
 sspp= "MUT" # three alpha code of your species
 
@@ -456,6 +460,23 @@ write.csv(BIOMASS,file=paste0(alpha_code,"_GSA",gsa,"_","BIOM.csv"))
 
 ggsave(filename=paste(state,"_","GSA_",gsa,"Total_biomass.jpeg"))
 
+### Compile AMSY info
+#if(compile_AMSY=="Y"){
+#  
+#  AMSY_catches <- read_csv("~/CNR/MSFD/github/AMSY/MSFD_Stocks_CPUE_medits.csv")%>%
+#    dplyr::mutate(Year=as.integer(Year), CPUE=as.numeric(CPUE))%>%
+#    dplyr::select(Stock, Year, Catch, CPUE)
+#  
+#  format_AMSY=BIOMASS %>%dplyr::select(Year=year, CPUE=total_biomass)%>%
+#    dplyr::mutate(Stock=alpha_code, Catch=NA)%>%
+#    dplyr::select(names(AMSY_catches))
+#  
+#  AMSY_catches=bind_rows(AMSY_catches, format_AMSY)
+#  
+#  write.csv(AMSY_catches, "~/CNR/MSFD/github/AMSY/MSFD_Stocks_CPUE_medits.csv", row.names = F)
+#  
+#}
+
 
 # Standardized LFDs by km2 ####
 raise=TCn$pfrac/TCn$pechan
@@ -528,6 +549,18 @@ LFD_fun=function(lfdata, type){
     ggtitle(paste(gen,spec,"LFDs_10-800m_GSA",gsa,state, type))+xlab("Length")+ylab("n/km2")+
     theme(legend.position="none")
   
+  if(is.na(size_thresh)==FALSE){
+    
+    ggplot(tempLFD, aes(y=Frequency, x=Length,col=year))+ geom_bar(stat= "identity")+
+      geom_vline(xintercept = size_thresh, linetype=2, color="black", size=1.5)+
+      facet_wrap(~year)+
+      ggtitle(paste(gen,spec,"LFDs_10-800m_GSA",gsa,state, type))+xlab("Length")+ylab("n/km2")+
+      theme(legend.position="none")
+    
+  }
+    
+    
+  
   ggsave(filename=paste(state,"_","GSA_",gsa,"LFD_10-800m", type,".jpeg"),width = 10, height = 8, dpi = 150, units = "in")
   
   write.csv(tempLFD,file=paste0(alpha_code,"_GSA",gsa,"_",type, "_LFD.csv",sep=""),row.names = F)
@@ -541,6 +574,15 @@ lfst=merge(lf,SW,by=c("year","stratum"),all=T)%>%
   dplyr::mutate(st=Value/sweptarea)
 
 LFD=LFD_fun(lfst, "Total")
+
+## Size threshold
+if(is.na(size_thresh)==F){
+  
+  lfst_threshold=lfst%>%dplyr::filter(LC >= size_thresh)
+  
+  LFD_threshold=LFD_fun(lfst_threshold, "Total")
+  
+}
 
 ## Selection
 if(is.na(selection)==F){
@@ -658,7 +700,35 @@ if(is.na(selection)==F){
   
   
 
-  }
+}
+
+if(is.na(size_thresh)==F){
+  
+  pl2=L95_fun(LFD_threshold, SW, "Size threshold", side_vars) %>%
+    dplyr::mutate(month=lubridate::month(as.Date(mean_doy, origin=paste0(as.numeric(year), "-01-01"))))
+  
+  write.csv(pl2%>%dplyr::rename("Indicator"="Val"),file=paste0(alpha_code,"_GSA",gsa,"_","L95_sizethreshold.csv",sep=""),row.names = F)
+  
+  pl3=pl1%>%
+    dplyr::select(year, Val,stdev_tot)%>%
+    dplyr::mutate(type="tot")%>%
+    bind_rows(pl2%>%
+                dplyr::select(year,Val,stdev_tot)%>%
+                dplyr::mutate(type="size_threshold"))
+  
+  ggplot(pl3, aes(x=year, y=Val, color=type)) + 
+    geom_line(linetype = "solid",size=1.25) +
+    geom_point()+
+    geom_hline(data=pl3%>%dplyr::filter(type=="tot"),aes(yintercept = mean(Val), color=type))+
+    geom_hline(data=pl3%>%dplyr::filter(type=="size_threshold"),aes(yintercept = mean(Val), color=type))+
+    geom_errorbar(aes(ymin=Val-stdev_tot, ymax=Val+stdev_tot), width=.2,
+                  position=position_dodge(0.05),linetype = "dashed",size=0.75)+
+    ylab("mm")+
+    ggtitle(paste0(gen,spec,"_","GSA",gsa,"_",state," L95 total and on size threshold:" , size_thresh, " mm"))
+  
+  
+  
+}
 
 ggsave(filename=paste0(state,"_","GSA_",gsa,"L95uncertainty.jpeg"),width = 10, height = 8, dpi = 150, units = "in")
 
