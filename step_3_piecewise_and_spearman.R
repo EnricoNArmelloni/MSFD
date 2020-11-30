@@ -14,15 +14,15 @@ sspp= "MUT"
 
 gsa="17" #assign gsa code to input file name (i.e. 9_11_ for two GSAs) 
 
-sel="selection"## alternatives: "selection" ; "total"
+sel="sizethreshold"## alternatives: "selection" ; "total"; "sizethreshold"
 
 input_dir="~/CNR/MSFD/github/release"
 
 variables="year" #c("year", "month")
 
-stand="Y"
+stand="N" # Y if you use data from gam prediction, "N" if you are using data from LFD.
 
-stand_mon=6
+stand_mon=6 # If line 23 is "Y", write here the month on which the data are predicted.
 ### get WD #####
 dir_t=paste0(input_dir, "/","GSA",gsa,"/", sspp,"/", sep="")
 
