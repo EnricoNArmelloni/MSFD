@@ -39,15 +39,15 @@ library(tidyverse)
 library(OpenStreetMap)
 library(splitstackshape)
 
-#### ----- Settings: set lines 44-64 basing on your data  ----- ####
+#### ----- Settings: set lines 42-64 basing on your data  ----- ####
 
 input_dir="~/CNR/MSFD/github/release/data" ### folder where are stored TA TB TC asfis list
 
 output_dir="~/CNR/MSFD/github/release" # folder for outputs
 
 # need to exclude strata? If yes, activate line 50 and type the strata to include
-#selection=NA
-selection=NA#c("B", "C")
+selection=NA ## let this parameter unchanged for the present version
+#selection=c("B", "C")
 
 size_thresh = 100 #in mm
 
