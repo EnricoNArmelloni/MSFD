@@ -10,17 +10,19 @@ set.seed(123)
 ###--- Set parameters
 # setting the working directory and select the datasets
 #### Settings
-sspp= "MUT"
+sspp= "RJC"
 
 gsa="17" #assign gsa code to input file name (i.e. 9_11_ for two GSAs) 
 
-sel="sizethreshold"## alternatives: "selection" ; "total"; "sizethreshold"
+sel="sizethreshold"## alternatives: "total"; "sizethreshold"
 
 input_dir="~/CNR/MSFD/github/release"
 
 variables="year" #c("year", "month")
 
-stand="N" # Y if you use data from gam prediction, "N" if you are using data from LFD.
+indicator="L95" # alternatives= L95 ; Pmega
+
+stand="Y" # Y if you use data from gam prediction, "N" if you are using data from LFD.
 
 stand_mon=6 # If line 23 is "Y", write here the month on which the data are predicted.
 ### get WD #####
@@ -34,13 +36,15 @@ dir.create(paste0(dir_t, "/seg_reg"))
   
   ###  Run ####
 species=sspp
+
+pop=ifelse(sel=="total", "_whole_", "_mat_")
     
 if(stand=="Y"){
-  data <- read_csv(paste0(dir_t,"/gam/",sspp,"_standardized_", stand_mon,".csv"))%>%
+  data <- read_csv(paste0(dir_t,"/gam/",indicator,pop, sspp,"_standardized_", stand_mon,".csv"))%>%
     dplyr::select("Indicator"= stand, variables)
 }else{
-  data <- read_csv(paste0(dir_t,"/",sspp,"_GSA",gsa,"_L95_", sel,".csv"))%>%
-    dplyr::select(Indicator, variables)
+  data <- read_csv(paste0(dir_t,"/",sspp,"_GSA",gsa,"_Indicators_", sel,".csv"))%>%
+    dplyr::select("Indicator"= indicator, variables)
 }
 
  
@@ -70,7 +74,7 @@ if(stand=="Y"){
     }
       
       summary(lm0)
-      tiff(filename=paste0(dir_t, "/seg_reg", "/", species, "_GSA", gsa, "_summary_model.tiff"),height = 20, width = 30, units = "cm", compression = "lzw", res = 600)
+      tiff(filename=paste0(dir_t, "/seg_reg", "/", species, "_GSA", gsa,indicator,pop, "_summary_model.tiff"),height = 20, width = 30, units = "cm", compression = "lzw", res = 600)
       par(mfrow=c(2,2))
       plot(lm0)
       dev.off()
@@ -81,7 +85,7 @@ if(stand=="Y"){
   # regression
   my.seg <- segmented(lm0, seg.Z = ~ year )
   
-  tiff(filename=paste0(dir_t, "/seg_reg", "/", species, "_GSA", gsa, "_segmented.tiff"),height = 20, width = 30, units = "cm", compression = "lzw", res = 600)
+  tiff(filename=paste0(dir_t, "/seg_reg", "/", species, "_GSA", gsa,indicator, pop, "_segmented.tiff"),height = 20, width = 30, units = "cm", compression = "lzw", res = 600)
   par(mfrow=c(1,1))
   plot(my.seg)
   dev.off()
@@ -178,7 +182,7 @@ if(stand=="Y"){
       theme_bw()+scale_x_continuous(breaks=seq(min(data$year),max(data$year),spaz))+
       theme_classic()+
       annotate("text", x=max(dat$year-spaz), y=max(dat$L95)-((max(dat$L95)-min(dat$L95))*0.02), label= lbl)+
-      ggtitle(paste(sspp,"GSA",gsa,"segmented regression results"))+
+      ggtitle(paste(sspp,"GSA",gsa,indicator,"segmented regression on", pop, "population"))+
       geom_smooth(data=dataplot%>%dplyr::filter(source=="fitted"),aes(year, L95, color=source), span = 0.5 ,stat="identity")
   }
   
@@ -220,8 +224,8 @@ if(stand=="Y"){
   
   ### Save ####
   
-  writexl::write_xlsx(res,paste0(dir_t, "/seg_reg", "/", species, "_GSA", gsa, "_results.xlsx"))
-  saveRDS(list(lm0, my.seg), file=paste0(dir_t, "/seg_reg", "/", species, "_GSA", gsa, "_models.rds"))
-  ggsave(file=paste0(dir_t, "/seg_reg", "/", species, "_GSA", gsa, "_segmented_fit_vs_obs.tiff"), width=12)
+  writexl::write_xlsx(res,paste0(dir_t, "/seg_reg", "/", species, "_GSA", gsa,indicator,pop, "_results.xlsx"))
+  saveRDS(list(lm0, my.seg), file=paste0(dir_t, "/seg_reg", "/", species, "_GSA", gsa,indicator,pop, "_models.rds"))
+  ggsave(file=paste0(dir_t, "/seg_reg", "/", species, "_GSA", gsa,indicator,pop, "_segmented_fit_vs_obs.tiff"), width=12)
   
 #}
