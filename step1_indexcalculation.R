@@ -49,17 +49,17 @@ output_dir="~/CNR/MSFD/github/release" # folder for outputs
 selection=NA ## let this parameter unchanged for the present version
 #selection=c("B", "C")
 
-Lmat = 600 #Lmat in mm
+Lmat = 122 #Lmat in mm
 
-Linf= 1167
+Linf= 25
 
-Lopt= ((2/3)*Linf)
+Lopt= (2/3)*Linf
 
 survey="medits"
 
 compile_AMSY="Y" # parameter for future usage
 
-sspp= "RJC" # three alpha code of your species
+sspp= "MUT" # three alpha code of your species
 
 areacode=c("17") # use combine for many GSA
 
@@ -252,7 +252,7 @@ vessels=TAn%>%dplyr::distinct(year, vessel,strata)
 ggplot()+
   geom_point(data=vessels, aes(x=year, y=vessel))
 
-ggsave(filename=paste(state,"_","GSA_",gsa,"exploring_vessels.jpeg"),width = 10, height = 8, dpi = 150, units = "in")
+ggsave(filename=paste(state,"_","GSA_",gsa,"exploring_vessels"),width = 10, height = 8, dpi = 150, units = "in")
 
 
 # Exploring swept area ####
@@ -260,7 +260,7 @@ exploring_sweptarea=ggplot(TAn, aes(x=meandepth, y=sqkm,color=strata)) +
   geom_point(cex=0.9) + facet_wrap(~strata,scales ="free") +
   theme(legend.position="none") + geom_smooth()
 exploring_sweptarea
-ggsave(filename=paste(state,"_","GSA_",gsa,"exploring_sweptarea.jpeg"),width = 10, height = 8, dpi = 150, units = "in", plot=exploring_sweptarea)
+ggsave(filename=paste(state,"_","GSA_",gsa,"exploring_sweptarea"),width = 10, height = 8, dpi = 150, units = "in", plot=exploring_sweptarea)
 
 # Exploring survey period ####
 TA_date=TAn%>%dplyr::select(year, month, day,strata)
@@ -286,7 +286,7 @@ survey_period=ggplot(TA_date, aes(x=month, y=dayofyear))+
   xlab("Month") + ylab("Day_of_year")
 
 survey_period
-ggsave(filename=paste(state,"_","GSA_",gsa,"survey_period.jpeg"),width = 10, height = 8, dpi = 150, units = "in", plot=survey_period)
+ggsave(filename=paste(state,"_","GSA_",gsa,"survey_period"),width = 10, height = 8, dpi = 150, units = "in", plot=survey_period)
 
 #### Create variables df
 side_vars=hauls_table%>%
@@ -332,7 +332,7 @@ density$n_km2=((density$number/density$sweptarea))
 ggplot(data=biomass)+
   geom_line(aes(x=year, y=kg_km2))+facet_wrap(~stratum)
 
-ggsave(filename=paste(state,"_","GSA_",gsa,"biom_by_strata.jpeg"),width = 10, height = 8, dpi = 150, units = "in")
+ggsave(filename=paste(state,"_","GSA_",gsa,"biom_by_strata"),width = 10, height = 8, dpi = 150, units = "in")
 
 # Area and weights of each stratum####
 area.str=stratum %>%
@@ -462,7 +462,7 @@ if(is.na(selection)==F){
 
 write.csv(BIOMASS,file=paste0(alpha_code,"_GSA",gsa,"_","BIOM.csv"))
 
-ggsave(filename=paste(state,"_","GSA_",gsa,"Total_biomass.jpeg"),width = 10, height = 8, dpi = 150, units = "in")
+ggsave(filename=paste(state,"_","GSA_",gsa,"Total_biomass"),width = 10, height = 8, dpi = 150, units = "in")
 
 # Compile AMSY info
 if(compile_AMSY=="Y"){
@@ -473,7 +473,29 @@ if(compile_AMSY=="Y"){
     dplyr::mutate(Stock=alpha_code, Catch=NA)%>%
     dplyr::select(Stock, Year, Catch, CPUE)
   
- write.csv(format_AMSY, file=paste0(dir_t,"/", alpha_code, "/AMSY/MSFD_Stocks_CPUE_medits.csv"), row.names = F)
+  newf=data.frame(Year=seq(min(format_AMSY$Year), max(format_AMSY$Year)))
+  
+  format_AMSY=newf%>%left_join(format_AMSY, by="Year")%>%
+    dplyr::mutate(Stock=alpha_code)
+  
+  for(i in 1:nrow(format_AMSY)){
+    if(is.na(format_AMSY[i,4])==TRUE){
+      
+      if(is.na(format_AMSY[i+1,4])==FALSE){
+        
+        format_AMSY[i,4]=(format_AMSY[i+1,4] + format_AMSY[i-1,4])/2
+        
+      }else if(is.na(format_AMSY[i+1,4])==FALSE) {
+        print("check gaps in biomass")
+        
+      }
+    }
+  }
+  
+  
+  
+ write.csv(format_AMSY%>%
+             dplyr::select(Stock, Year, Catch, CPUE), file=paste0(dir_t,"/", alpha_code, "/AMSY/MSFD_Stocks_CPUE_medits",alpha_code, ".csv"), row.names = F)
   
 }
 
@@ -564,7 +586,7 @@ LFD_fun=function(lfdata, type){
     
     
   
-  ggsave(filename=paste(state,"_","GSA_",gsa,"LFD_10-800m", type,".jpeg"),width = 10, height = 8, dpi = 150, units = "in")
+  ggsave(filename=paste(state,"_","GSA_",gsa,"LFD_10-800m", type,""),width = 10, height = 8, dpi = 150, units = "in")
   
   write.csv(tempLFD,file=paste0(alpha_code,"_GSA",gsa,"_",type, "_LFD.csv",sep=""),row.names = F)
   
@@ -763,9 +785,9 @@ if(is.na(Lmat)==F){
   
 }
 
-ggsave(plot =pl95, filename=paste0(state,"_","GSA_",gsa,"L95uncertainty.jpeg"),width = 10, height = 8, dpi = 150, units = "in")
+ggsave(plot =pl95, filename=paste0(state,"_","GSA_",gsa,"L95uncertainty"),width = 10, height = 8, dpi = 150, units = "in")
 
-ggsave(plot =ppmega, filename=paste0(state,"_","GSA_",gsa,"Pmega.jpeg"),width = 10, height = 8, dpi = 150, units = "in")
+ggsave(plot =ppmega, filename=paste0(state,"_","GSA_",gsa,"Pmega"),width = 10, height = 8, dpi = 150, units = "in")
 
 
 toc()
