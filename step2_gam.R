@@ -66,7 +66,7 @@ panel.hist <- function(x, ...)
   rect(breaks[-nB], 0, breaks[-1], y, col = "white", ...)
 }
 
-tiff(paste0(dir_t, paste0("/gam/",indicator,"pairplot.tiff")), height = 20, width = 20, units = "cm", compression = "lzw", res = 600) 
+png(paste0(dir_t, paste0("/gam/",indicator,"pairplot.png")), height = 20, width = 20, units = "cm", res = 600) 
 #op<-par(mfrow=c(1,1), mar=c(4,4,2,2))
 Z<-data%>%dplyr::select(nhauls, month,year)
 pairs(Z,las=1 ,lower.panel=panel.smooth2, upper.panel=panel.cor, diag.panel=panel.hist, cex=0.9, cex.labels=1.0)
@@ -122,7 +122,7 @@ plot(mod21)
 mod=mod11
 
 #residui pearson
-tiff(paste0(dir_t, "/gam/", indicator,pop,"pearson_res.tiff"), height = 20, width = 20, units = "cm", compression = "lzw", res = 600) 
+png(paste0(dir_t, "/gam/", indicator,pop,"pearson_res.png"), height = 20, width = 20, units = "cm",  res = 600) 
 par(mfrow=c(1,1))
 E.m4<- resid(mod, type = "pearson")
 Fit.m4 <- fitted(mod)
@@ -156,14 +156,14 @@ plot_variabili=function(beta, teta){
   
 }
 
-tiff(paste0(dir_t, "/gam/", indicator, pop, "res_by_var.tiff"), height = 20, width = 30, units = "cm", compression = "lzw", res = 600) 
+png(paste0(dir_t, "/gam/", indicator, pop, "res_by_var.png"), height = 20, width = 30, units = "cm",  res = 600) 
 par(mfrow=c(1,3))
 plot_variabili(data$year, "Year")
 plot_variabili(data$month, "Month")
 plot_variabili(data$nhauls, "nhauls")
 dev.off()
 
-tiff(paste0(dir_t, "/gam/", indicator,pop,  "res_check.tiff"), height = 20, width = 30, units = "cm", compression = "lzw", res = 600) 
+png(paste0(dir_t, "/gam/", indicator,pop,  "res_check.png"), height = 20, width = 30, units = "cm", res = 600) 
 par(mfrow=c(1,3))
 #Normality
 par(mar=c(5,5,2,2))
@@ -180,7 +180,7 @@ plot(res, ylim=c(-5.5,5.5))
 abline(0,0, col="red")
 dev.off()
 
-tiff(paste0(dir_t, "/gam/", indicator, "cook.tiff"), height = 20, width = 30, units = "cm", compression = "lzw", res = 600) 
+png(paste0(dir_t, "/gam/", indicator, "cook.png"), height = 20, width = 30, units = "cm",  res = 600) 
 # cOOK'S DISTANCE
 par(mfrow=c(1,1))
 plot(cooks.distance(mod), ylab="Cook's distance", type = "h", ylim=c(0,1))
@@ -191,12 +191,12 @@ dev.off()
 
 
 
-tiff(paste0(dir_t, "/gam/", indicator,pop,  "gam_check.tiff"), height = 20, width = 30, units = "cm", compression = "lzw", res = 600) 
+png(paste0(dir_t, "/gam/", indicator,pop,  "gam_check.png"), height = 20, width = 30, units = "cm",  res = 600) 
 par(mfrow=c(2,2))
 gam.check(mod)
 dev.off()
 
-tiff(paste0(dir_t, "/gam/", indicator,pop,  "factor_effects.tiff"), height = 20, width = 30, units = "cm", compression = "lzw", res = 600) 
+png(paste0(dir_t, "/gam/", indicator,pop,  "factor_effects.png"), height = 20, width = 30, units = "cm",  res = 600) 
 par(mfrow=c(1,2))
 plot(mod,select =1)
 plot(mod, select =2)
@@ -220,7 +220,7 @@ ggplot()+geom_line(aes(x=year, y=Indicator, color=Data), data=newdat)+geom_point
   scale_color_discrete(name = "Source", labels = c("Observed", "Predicted", paste("Standardized on month",st_month)))+
   ggtitle(paste(sspp,"GSA",gsa, indicator, pop))+ theme(legend.position="bottom")
 
-ggsave(paste0(dir_t, "/gam/", indicator, pop, "indicator_trend.tiff"))
+ggsave(paste0(dir_t, "/gam/", indicator, pop, "indicator_trend.png"))
 
 write.csv(data, paste0(dir_t, "gam/",indicator,pop,  sspp,"_standardized_", st_month, ".csv"), row.names = FALSE)
 
