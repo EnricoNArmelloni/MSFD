@@ -49,17 +49,17 @@ output_dir="~/CNR/MSFD/github/release" # folder for outputs
 selection=NA ## let this parameter unchanged for the present version
 #selection=c("B", "C")
 
-Lmat = 122 #Lmat in mm
+Lmat = 230 #Lmat in mm
 
-Linf= 25
+Linf= 380
 
 Lopt= (2/3)*Linf
 
 survey="medits"
 
-compile_AMSY="Y" # parameter for future usage
+compile_AMSY="N" # parameter for future usage
 
-sspp= "MUT" # three alpha code of your species
+sspp= "FLE" # three alpha code of your species
 
 areacode=c("17") # use combine for many GSA
 
@@ -252,7 +252,7 @@ vessels=TAn%>%dplyr::distinct(year, vessel,strata)
 ggplot()+
   geom_point(data=vessels, aes(x=year, y=vessel))
 
-ggsave(filename=paste(state,"_","GSA_",gsa,"exploring_vessels"),width = 10, height = 8, dpi = 150, units = "in")
+ggsave(filename=paste(state,"_","GSA_",gsa,"exploring_vessels.png"),width = 10, height = 8, dpi = 150, units = "in")
 
 
 # Exploring swept area ####
@@ -260,7 +260,7 @@ exploring_sweptarea=ggplot(TAn, aes(x=meandepth, y=sqkm,color=strata)) +
   geom_point(cex=0.9) + facet_wrap(~strata,scales ="free") +
   theme(legend.position="none") + geom_smooth()
 exploring_sweptarea
-ggsave(filename=paste(state,"_","GSA_",gsa,"exploring_sweptarea"),width = 10, height = 8, dpi = 150, units = "in", plot=exploring_sweptarea)
+ggsave(filename=paste(state,"_","GSA_",gsa,"exploring_sweptarea.png"),width = 10, height = 8, dpi = 150, units = "in", plot=exploring_sweptarea)
 
 # Exploring survey period ####
 TA_date=TAn%>%dplyr::select(year, month, day,strata)
@@ -286,7 +286,7 @@ survey_period=ggplot(TA_date, aes(x=month, y=dayofyear))+
   xlab("Month") + ylab("Day_of_year")
 
 survey_period
-ggsave(filename=paste(state,"_","GSA_",gsa,"survey_period"),width = 10, height = 8, dpi = 150, units = "in", plot=survey_period)
+ggsave(filename=paste(state,"_","GSA_",gsa,"survey_period.png"),width = 10, height = 8, dpi = 150, units = "in", plot=survey_period)
 
 #### Create variables df
 side_vars=hauls_table%>%
@@ -332,7 +332,7 @@ density$n_km2=((density$number/density$sweptarea))
 ggplot(data=biomass)+
   geom_line(aes(x=year, y=kg_km2))+facet_wrap(~stratum)
 
-ggsave(filename=paste(state,"_","GSA_",gsa,"biom_by_strata"),width = 10, height = 8, dpi = 150, units = "in")
+ggsave(filename=paste(state,"_","GSA_",gsa,"biom_by_strata.png"),width = 10, height = 8, dpi = 150, units = "in")
 
 # Area and weights of each stratum####
 area.str=stratum %>%
@@ -462,7 +462,7 @@ if(is.na(selection)==F){
 
 write.csv(BIOMASS,file=paste0(alpha_code,"_GSA",gsa,"_","BIOM.csv"))
 
-ggsave(filename=paste(state,"_","GSA_",gsa,"Total_biomass"),width = 10, height = 8, dpi = 150, units = "in")
+ggsave(filename=paste(state,"_","GSA_",gsa,"Total_biomass.png"),width = 10, height = 8, dpi = 150, units = "in")
 
 # Compile AMSY info
 if(compile_AMSY=="Y"){
@@ -586,7 +586,7 @@ LFD_fun=function(lfdata, type){
     
     
   
-  ggsave(filename=paste(state,"_","GSA_",gsa,"LFD_10-800m", type,""),width = 10, height = 8, dpi = 150, units = "in")
+  ggsave(filename=paste0(state,"_","GSA_",gsa,"LFD_10-800m", type,".png"),width = 10, height = 8, dpi = 150, units = "in")
   
   write.csv(tempLFD,file=paste0(alpha_code,"_GSA",gsa,"_",type, "_LFD.csv",sep=""),row.names = F)
   
@@ -620,10 +620,7 @@ if(is.na(Lmat)==F){
 #  
 #}
 
-lfdata=LFD_threshold
-  swdata=SW
-  type=Lmat
-  side_vrs=side_vars
+
 
 
 
@@ -785,9 +782,9 @@ if(is.na(Lmat)==F){
   
 }
 
-ggsave(plot =pl95, filename=paste0(state,"_","GSA_",gsa,"L95uncertainty"),width = 10, height = 8, dpi = 150, units = "in")
+ggsave(plot =pl95, filename=paste0(state,"_","GSA_",gsa,"L95uncertainty.png"),width = 10, height = 8, dpi = 150, units = "in")
 
-ggsave(plot =ppmega, filename=paste0(state,"_","GSA_",gsa,"Pmega"),width = 10, height = 8, dpi = 150, units = "in")
+ggsave(plot =ppmega, filename=paste0(state,"_","GSA_",gsa,"Pmega.png"),width = 10, height = 8, dpi = 150, units = "in")
 
 
 toc()
