@@ -20,9 +20,9 @@ input_dir="~/CNR/MSFD/github/release"
 
 variables="year" #c("year", "month")
 
-indicator="L95" # alternatives= L95 ; Pmega
+indicator="Pmega" # alternatives= L95 ; Pmega
 
-stand="Y" # Y if you use data from gam prediction, "N" if you are using data from LFD.
+stand="N" # Y if you use data from gam prediction, "N" if you are using data from LFD.
 
 stand_mon=6 # If line 23 is "Y", write here the month on which the data are predicted.
 ### get WD #####
@@ -74,7 +74,7 @@ if(stand=="Y"){
     }
       
       summary(lm0)
-      tiff(filename=paste0(dir_t, "/seg_reg", "/", species, "_GSA", gsa,indicator,pop, "_summary_model.tiff"),height = 20, width = 30, units = "cm", compression = "lzw", res = 600)
+      png(filename=paste0(dir_t, "/seg_reg", "/", species, "_GSA", gsa,indicator,pop, "_summary_model.png"),height = 20, width = 30, units = "cm", res = 600)
       par(mfrow=c(2,2))
       plot(lm0)
       dev.off()
@@ -85,7 +85,7 @@ if(stand=="Y"){
   # regression
   my.seg <- segmented(lm0, seg.Z = ~ year )
   
-  tiff(filename=paste0(dir_t, "/seg_reg", "/", species, "_GSA", gsa,indicator, pop, "_segmented.tiff"),height = 20, width = 30, units = "cm", compression = "lzw", res = 600)
+  png(filename=paste0(dir_t, "/seg_reg", "/", species, "_GSA", gsa,indicator, pop, "_segmented.png"),height = 20, width = 30, units = "cm", res = 600)
   par(mfrow=c(1,1))
   plot(my.seg)
   dev.off()
@@ -160,8 +160,8 @@ if(stand=="Y"){
   ### Final plot ####
   newdat=bind_cols(data, fit=my.seg$fitted.values)
   
-  dataplot=bind_rows(newdat%>%dplyr::group_by(year)%>%dplyr::summarize(L95=mean(Indicator))%>%dplyr::mutate(source="observed"),
-                     newdat%>%dplyr::group_by(year)%>%dplyr::summarize(L95=mean(fit))%>%dplyr::mutate(source="fitted"))
+  dataplot=bind_rows(newdat%>%dplyr::group_by(year)%>%dplyr::summarize(Indicator=mean(Indicator))%>%dplyr::mutate(source="observed"),
+                     newdat%>%dplyr::group_by(year)%>%dplyr::summarize(Indicator=mean(fit))%>%dplyr::mutate(source="fitted"))
   
   
   if(nrow(dataplot%>%distinct(year)) > 20 ){
@@ -173,17 +173,17 @@ if(stand=="Y"){
   baseplot=function(dat, clr, lbl){
     
     ggplot(data=dat %>%dplyr::filter(source=="observed"))+
-      geom_point(aes(x=year, y=L95, color=source), size=3)+
+      geom_point(aes(x=year, y=Indicator, color=source), size=3)+
       geom_vline(aes(xintercept=bp[2]), linetype="dashed")+
-      geom_rect(aes(xmin = min(AP$year), xmax = max(AP$year), ymin =mean(AP$Val)-sd(AP$Val), ymax = mean(AP$Val)+sd(AP$Val)),alpha = 0.005, fill = clr)+
+      geom_rect(aes(xmin = min(AP$year), xmax = max(AP$year), ymin =mean(AP$Val)-sd(AP$Val), ymax = mean(AP$Val)+sd(AP$Val)),alpha = 0.005, fill = clr)+ylab(indicator)+
       geom_segment(x=min(AP$year),xend=max(AP$year),y=mean(AP$Val), yend=mean(AP$Val), size=1, linetype = "dashed", color=clr)+
       geom_rect(aes(xmin = min(BRP$year), xmax = max(BRP$year), ymin =mean(BRP$Val)-sd(BRP$Val), ymax = mean(BRP$Val)+sd(BRP$Val)),alpha = 0.005, fill = "blue")+
       geom_segment(x=min(BRP$year),xend=max(BRP$year),y=mean(BRP$Val), yend=mean(BRP$Val), size=1, linetype = "dashed", color="blue")+
       theme_bw()+scale_x_continuous(breaks=seq(min(data$year),max(data$year),spaz))+
       theme_classic()+
-      annotate("text", x=max(dat$year-spaz), y=max(dat$L95)-((max(dat$L95)-min(dat$L95))*0.02), label= lbl)+
+      annotate("text", x=max(dat$year-spaz), y=max(dat$Indicator)-((max(dat$Indicator)-min(dat$Indicator))*0.02), label= lbl)+
       ggtitle(paste(sspp,"GSA",gsa,indicator,"segmented regression on", pop, "population"))+
-      geom_smooth(data=dataplot%>%dplyr::filter(source=="fitted"),aes(year, L95, color=source), span = 0.5 ,stat="identity")
+      geom_smooth(data=dataplot%>%dplyr::filter(source=="fitted"),aes(year, Indicator, color=source), span = 0.5 ,stat="identity")
   }
   
   if(regr.p >= 0.05){
@@ -207,17 +207,17 @@ if(stand=="Y"){
   if(TA==0){
     pl+ 
       geom_smooth(method = "lm", se = TRUE, color="black", linetype="dashed", size=1.5, data=APTA,aes(year, Indicator))+
-      annotate("text", x=max(dataplot$year-spaz), y=max(dataplot$L95)-((max(dataplot$L95)-min(dataplot$L95))*0.06), label= "No sign trend in recent years")
+      annotate("text", x=max(dataplot$year-spaz), y=max(dataplot$Indicator)-((max(dataplot$Indicator)-min(dataplot$Indicator))*0.06), label= "No sign trend in recent years")
     
     }else if(TA==1){
         pl+
       geom_smooth(method = "lm", se = TRUE, color="green", linetype="dashed", size=1.5, data=APTA,aes(year, Indicator))+
-        annotate("text", x=max(dataplot$year-spaz), y=max(dataplot$L95)-((max(dataplot$L95)-min(dataplot$L95))*0.06), label= "Significant increasing trend detected in recent years")
+        annotate("text", x=max(dataplot$year-spaz), y=max(dataplot$Indicator)-((max(dataplot$Indicator)-min(dataplot$Indicator))*0.06), label= "Significant increasing trend detected in recent years")
       
       }else if(TA==-1){
         pl+
         geom_smooth(method = "lm", se = TRUE, color="red", linetype="dashed", size=1.5, data=APTA,aes(year, Indicator))+
-          annotate("text", x=max(dataplot$year-spaz), y=max(dataplot$L95)-((max(dataplot$L95)-min(dataplot$L95))*0.06), label= "Significant decreasing trend detected in recent years")
+          annotate("text", x=max(dataplot$year-spaz), y=max(dataplot$Indicator)-((max(dataplot$Indicator)-min(dataplot$Indicator))*0.06), label= "Significant decreasing trend detected in recent years")
         
       }
     
@@ -226,6 +226,6 @@ if(stand=="Y"){
   
   writexl::write_xlsx(res,paste0(dir_t, "/seg_reg", "/", species, "_GSA", gsa,indicator,pop, "_results.xlsx"))
   saveRDS(list(lm0, my.seg), file=paste0(dir_t, "/seg_reg", "/", species, "_GSA", gsa,indicator,pop, "_models.rds"))
-  ggsave(file=paste0(dir_t, "/seg_reg", "/", species, "_GSA", gsa,indicator,pop, "_segmented_fit_vs_obs.tiff"), width=12)
+  ggsave(file=paste0(dir_t, "/seg_reg", "/", species, "_GSA", gsa,indicator,pop, "_segmented_fit_vs_obs.png"), width=12)
   
 #}
