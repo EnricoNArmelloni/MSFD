@@ -9,11 +9,13 @@ rm(list = ls())
 #### Settings
 input_dir="~/CNR/MSFD/github/release"
 
-sspp= "MUT" ## set species 3 alpha code
+sspp= "RJC" ## set species 3 alpha code
 
 gsa="17" # Assign gsa code to output file name (i.e. 9_11_ for two GSAs) 
 
 sel="sizethreshold" ## set kind of input file. Alternatives: "selection" ; "total; sizethreshold"
+
+indicator="L95" # alternatives= L95 ; Pmega
 
 st_month=6 ## Select month for standardization
 
@@ -22,9 +24,11 @@ dir_t=paste0(input_dir,"/","GSA",gsa,"/", sspp,"/", sep="")
 dir.create(paste0(dir_t, "/gam"))
 
 ## Import data
-data= read_csv(paste0(dir_t,"/",sspp,"_GSA",gsa,"_L95_", sel,".csv"))%>%
+pop=ifelse(sel=="total", "_whole_", "_mat_")
+
+data= read_csv(paste0(dir_t, sspp,"_GSA",gsa,"_Indicators_", sel,".csv"))%>%
   dplyr::mutate(month=lubridate::month(as.Date(mean_doy, origin=paste0(as.numeric(year), "-01-01"))))%>%
-  dplyr::select(year, nhauls, month, Indicator)
+  dplyr::select(year, nhauls, month, Indicator=indicator)
 
 
 #### PAIR PLOT FOR COLLINEARITY CHECK
@@ -62,7 +66,7 @@ panel.hist <- function(x, ...)
   rect(breaks[-nB], 0, breaks[-1], y, col = "white", ...)
 }
 
-tiff(paste0(dir_t, "/gam/pairplot.tiff"), height = 20, width = 20, units = "cm", compression = "lzw", res = 600) 
+tiff(paste0(dir_t, paste0("/gam/",indicator,"pairplot.tiff")), height = 20, width = 20, units = "cm", compression = "lzw", res = 600) 
 #op<-par(mfrow=c(1,1), mar=c(4,4,2,2))
 Z<-data%>%dplyr::select(nhauls, month,year)
 pairs(Z,las=1 ,lower.panel=panel.smooth2, upper.panel=panel.cor, diag.panel=panel.hist, cex=0.9, cex.labels=1.0)
@@ -118,7 +122,7 @@ plot(mod21)
 mod=mod11
 
 #residui pearson
-tiff(paste0(dir_t, "/gam/pearson_res.tiff"), height = 20, width = 20, units = "cm", compression = "lzw", res = 600) 
+tiff(paste0(dir_t, "/gam/", indicator,pop,"pearson_res.tiff"), height = 20, width = 20, units = "cm", compression = "lzw", res = 600) 
 par(mfrow=c(1,1))
 E.m4<- resid(mod, type = "pearson")
 Fit.m4 <- fitted(mod)
@@ -152,14 +156,14 @@ plot_variabili=function(beta, teta){
   
 }
 
-tiff(paste0(dir_t, "/gam/res_by_var.tiff"), height = 20, width = 30, units = "cm", compression = "lzw", res = 600) 
+tiff(paste0(dir_t, "/gam/", indicator, pop, "res_by_var.tiff"), height = 20, width = 30, units = "cm", compression = "lzw", res = 600) 
 par(mfrow=c(1,3))
 plot_variabili(data$year, "Year")
 plot_variabili(data$month, "Month")
 plot_variabili(data$nhauls, "nhauls")
 dev.off()
 
-tiff(paste0(dir_t, "/gam/res_check.tiff"), height = 20, width = 30, units = "cm", compression = "lzw", res = 600) 
+tiff(paste0(dir_t, "/gam/", indicator,pop,  "res_check.tiff"), height = 20, width = 30, units = "cm", compression = "lzw", res = 600) 
 par(mfrow=c(1,3))
 #Normality
 par(mar=c(5,5,2,2))
@@ -176,7 +180,7 @@ plot(res, ylim=c(-5.5,5.5))
 abline(0,0, col="red")
 dev.off()
 
-tiff(paste0(dir_t, "/gam/cook.tiff"), height = 20, width = 30, units = "cm", compression = "lzw", res = 600) 
+tiff(paste0(dir_t, "/gam/", indicator, "cook.tiff"), height = 20, width = 30, units = "cm", compression = "lzw", res = 600) 
 # cOOK'S DISTANCE
 par(mfrow=c(1,1))
 plot(cooks.distance(mod), ylab="Cook's distance", type = "h", ylim=c(0,1))
@@ -187,12 +191,12 @@ dev.off()
 
 
 
-tiff(paste0(dir_t, "/gam/gam_check.tiff"), height = 20, width = 30, units = "cm", compression = "lzw", res = 600) 
+tiff(paste0(dir_t, "/gam/", indicator,pop,  "gam_check.tiff"), height = 20, width = 30, units = "cm", compression = "lzw", res = 600) 
 par(mfrow=c(2,2))
 gam.check(mod)
 dev.off()
 
-tiff(paste0(dir_t, "/gam/factor_effects.tiff"), height = 20, width = 30, units = "cm", compression = "lzw", res = 600) 
+tiff(paste0(dir_t, "/gam/", indicator,pop,  "factor_effects.tiff"), height = 20, width = 30, units = "cm", compression = "lzw", res = 600) 
 par(mfrow=c(1,2))
 plot(mod,select =1)
 plot(mod, select =2)
@@ -214,10 +218,10 @@ ggplot()+geom_line(aes(x=year, y=Indicator, color=Data), data=newdat)+geom_point
   ylab("L95 (mm)")+
   scale_x_continuous(breaks = seq(1994,2017,2))+
   scale_color_discrete(name = "Source", labels = c("Observed", "Predicted", paste("Standardized on month",st_month)))+
-  ggtitle(paste(sspp,"GSA",gsa,"L95"))+ theme(legend.position="bottom")
+  ggtitle(paste(sspp,"GSA",gsa, indicator, pop))+ theme(legend.position="bottom")
 
-ggsave(paste0(dir_t, "/gam/indicator_trend.tiff"))
+ggsave(paste0(dir_t, "/gam/", indicator, pop, "indicator_trend.tiff"))
 
-write.csv(data, paste0(dir_t, "gam/", sspp,"_standardized_", st_month, ".csv"), row.names = FALSE)
+write.csv(data, paste0(dir_t, "gam/",indicator,pop,  sspp,"_standardized_", st_month, ".csv"), row.names = FALSE)
 
           
