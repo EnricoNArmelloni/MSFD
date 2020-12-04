@@ -49,13 +49,17 @@ output_dir="~/CNR/MSFD/github/release" # folder for outputs
 selection=NA ## let this parameter unchanged for the present version
 #selection=c("B", "C")
 
-size_thresh = 100 #in mm
+Lmat = 600 #Lmat in mm
+
+Linf= 1167
+
+Lopt= ((2/3)*Linf)
 
 survey="medits"
 
-#compile_AMSY="N" # parameter for future usage
+compile_AMSY="Y" # parameter for future usage
 
-sspp= "MUT" # three alpha code of your species
+sspp= "RJC" # three alpha code of your species
 
 areacode=c("17") # use combine for many GSA
 
@@ -117,7 +121,7 @@ if(survey=="medits"){
   #TCn$length_class=ifelse(TCn$country=="ITA" & alpha_code=="DPS" & TCn$length_class>50,TCn$length_class/10,TCn$length_class)
   #TCn$length_class=ifelse(TCn$country=="ESP" & alpha_code=="ARA" & TCn$area==5 & TCn$length_class>80,TCn$length_class/10,TCn$length_class)
   #TCn$length_class=ifelse(TCn$country=="ESP" & alpha_code=="ARA" & TCn$area==6 & TCn$length_class>80,TCn$length_class/10,TCn$length_class)
-  
+  TCn$length_class=ifelse(TCn$country=="ITA" & alpha_code=="SYC" & TCn$length_class>800,TCn$length_class/10,TCn$length_class)
   # There are mistakes in length class value in MTS GSA 17 ITA Years 2012:2016 (converting TL in CL based on values find in paper)
   # TCn$length_class=ifelse(TCn$country=="ITA" & TCn$year==2012 & TCn$length_class>50,as.integer(exp((log(TCn$length_class)-log(7.3949))/0.8693),round(0)),TCn$length_class)
   # TCn$length_class=ifelse(TCn$country=="ITA" & TCn$year==2013 & TCn$length_class>50,as.integer(exp((log(TCn$length_class)-log(7.3949))/0.8693)),TCn$length_class)
@@ -411,8 +415,8 @@ BIOMASS[is.na(BIOMASS)]=0
 
 
 plo_biom=ggplot(BIOMASS, aes(x=year, y=total_biomass)) + 
-  geom_line(linetype = "solid",size=1.25,col="4") +
-  geom_point()+geom_hline(aes(yintercept = mean(total_biomass)), color="black")+
+  geom_line(linetype = "solid",size=1.25,color="tomato") +
+  geom_point(color="tomato")+geom_hline(aes(yintercept = mean(total_biomass)), color="tomato")+
   geom_errorbar(aes(ymin=total_biomass-stdev_tot, ymax=total_biomass+stdev_tot), width=.2,col="2",
                 position=position_dodge(0.05),linetype = "dashed",size=0.75)+
   ylab("kg/km2")+
@@ -458,24 +462,20 @@ if(is.na(selection)==F){
 
 write.csv(BIOMASS,file=paste0(alpha_code,"_GSA",gsa,"_","BIOM.csv"))
 
-ggsave(filename=paste(state,"_","GSA_",gsa,"Total_biomass.jpeg"))
+ggsave(filename=paste(state,"_","GSA_",gsa,"Total_biomass.jpeg"),width = 10, height = 8, dpi = 150, units = "in")
 
-### Compile AMSY info
-#if(compile_AMSY=="Y"){
-#  
-#  AMSY_catches <- read_csv("~/CNR/MSFD/github/AMSY/MSFD_Stocks_CPUE_medits.csv")%>%
-#    dplyr::mutate(Year=as.integer(Year), CPUE=as.numeric(CPUE))%>%
-#    dplyr::select(Stock, Year, Catch, CPUE)
-#  
-#  format_AMSY=BIOMASS %>%dplyr::select(Year=year, CPUE=total_biomass)%>%
-#    dplyr::mutate(Stock=alpha_code, Catch=NA)%>%
-#    dplyr::select(names(AMSY_catches))
-#  
-#  AMSY_catches=bind_rows(AMSY_catches, format_AMSY)
-#  
-#  write.csv(AMSY_catches, "~/CNR/MSFD/github/AMSY/MSFD_Stocks_CPUE_medits.csv", row.names = F)
-#  
-#}
+# Compile AMSY info
+if(compile_AMSY=="Y"){
+  
+  dir.create(paste0(dir_t,"/", alpha_code, "/AMSY"))
+  
+  format_AMSY=BIOMASS %>%dplyr::select(Year=year, CPUE=total_biomass)%>%
+    dplyr::mutate(Stock=alpha_code, Catch=NA)%>%
+    dplyr::select(Stock, Year, Catch, CPUE)
+  
+ write.csv(format_AMSY, file=paste0(dir_t,"/", alpha_code, "/AMSY/MSFD_Stocks_CPUE_medits.csv"), row.names = F)
+  
+}
 
 
 # Standardized LFDs by km2 ####
@@ -549,13 +549,16 @@ LFD_fun=function(lfdata, type){
     ggtitle(paste(gen,spec,"LFDs_10-800m_GSA",gsa,state, type))+xlab("Length")+ylab("n/km2")+
     theme(legend.position="none")
   
-  if(is.na(size_thresh)==FALSE){
+  if( type=="Total" & is.na(Lmat)==FALSE){
     
-    ggplot(tempLFD, aes(y=Frequency, x=Length,col=year))+ geom_bar(stat= "identity")+
-      geom_vline(xintercept = size_thresh, linetype=2, color="black", size=1.5)+
+    Lref=data.frame(Ind=c("Lmat", "Lopt"), val=c(Lmat, Lopt))
+    
+    ggplot(tempLFD, aes(y=Frequency, x=Length))+ geom_bar(stat= "identity", fill="deepskyblue3")+
+      geom_vline(data=Lref, aes(xintercept = val, linetype=Ind), color="black", size=0.8)+
+      #geom_vline(xintercept = Lopt,  color="black", size=1,linetype=1)+
       facet_wrap(~year)+
       ggtitle(paste(gen,spec,"LFDs_10-800m_GSA",gsa,state, type))+xlab("Length")+ylab("n/km2")+
-      theme(legend.position="none")
+      theme(legend.position="bottom")
     
   }
     
@@ -575,25 +578,30 @@ lfst=merge(lf,SW,by=c("year","stratum"),all=T)%>%
 
 LFD=LFD_fun(lfst, "Total")
 
-## Size threshold
-if(is.na(size_thresh)==F){
+## Lmat
+if(is.na(Lmat)==F){
   
-  lfst_threshold=lfst%>%dplyr::filter(LC >= size_thresh)
+  lfst_threshold=lfst%>%dplyr::filter(LC >= Lmat)
   
-  LFD_threshold=LFD_fun(lfst_threshold, "Total")
+  LFD_threshold=LFD_fun(lfst_threshold, "Lmat")
   
 }
 
 ## Selection
-if(is.na(selection)==F){
-  
-  lfst_sel=lf%>%dplyr::filter(stratum %in%selection)%>%
-    dplyr::left_join(SW_sel, by=c("year", "stratum"))%>%
-    dplyr::mutate(st=Value/sweptarea)
-  
-  LFD_sel=LFD_fun(lfst_sel, "Selection")
-  
-}
+#if(is.na(selection)==F){
+#  
+#  lfst_sel=lf%>%dplyr::filter(stratum %in%selection)%>%
+#    dplyr::left_join(SW_sel, by=c("year", "stratum"))%>%
+#    dplyr::mutate(st=Value/sweptarea)
+#  
+#  LFD_sel=LFD_fun(lfst_sel, "Selection")
+#  
+#}
+
+lfdata=LFD_threshold
+  swdata=SW
+  type=Lmat
+  side_vrs=side_vars
 
 
 
@@ -609,6 +617,14 @@ L95_fun=function(lfdata, swdata, type, side_vrs){
   dati <- expandRows(dati[complete.cases(dati),] , "Frequenza")
   L95 <-dati%>%dplyr::group_by(year)%>%dplyr::summarize_at(vars(Length), funs(!!!p_funs))%>%
     dplyr::rename("Val"="perc95")
+  
+  Pmega=dati%>%
+    dplyr::mutate(mega=ifelse(Length > Lopt, "Y","N"))%>%
+    group_by(year, mega)%>%
+    dplyr::summarise(int= sum(Frequency))%>%
+    spread(key=mega, value=int)%>%
+    replace(is.na(.), 0)%>%
+    dplyr::mutate(Pmega=Y/(Y+N))
   
   
   ### calculate variability
@@ -654,10 +670,11 @@ L95_fun=function(lfdata, swdata, type, side_vrs){
   
   
   L95_plot=left_join(L95, uncert_indicator, by=c("year"))%>%
-    left_join(side_vrs, by=c("year"))
+    left_join(side_vrs, by=c("year"))%>%
+    left_join(Pmega%>%dplyr::select(year,Pmega), by="year")
   
   ggplot(L95_plot, aes(x=year, y=Val)) + 
-    geom_line(linetype = "solid",size=1,col="4") +
+    geom_line(linetype = "solid",size=1,col="deepskyblue3") +
     geom_point()+
     geom_errorbar(aes(ymin=Val-stdev_tot, ymax=Val+stdev_tot), width=.2,col="red",
                   position=position_dodge(0.05),linetype = "dashed",size=0.75)+
@@ -671,67 +688,84 @@ L95_fun=function(lfdata, swdata, type, side_vrs){
 }
 
 pl1=L95_fun(LFD, SW, "Total", side_vars)
-write.csv(pl1%>%dplyr::rename("Indicator"="Val")%>%
-            dplyr::mutate(month=lubridate::month(as.Date(mean_doy, origin=paste0(as.numeric(year), "-01-01")))),file=paste0(alpha_code,"_GSA",gsa,"_","L95_total.csv",sep=""),row.names = F)
 
-if(is.na(selection)==F){
+
+write.csv(pl1%>%dplyr::rename("L95"="Val")%>%
+            dplyr::mutate(month=lubridate::month(as.Date(mean_doy, origin=paste0(as.numeric(year), "-01-01")))),file=paste0(alpha_code,"_GSA",gsa,"_","Indicators_total.csv",sep=""),row.names = F)
+
+#if(is.na(selection)==F){
+#  
+#  pl2=L95_fun(LFD_sel, SW_sel, "Selection", side_vars_sel) %>%
+#    dplyr::mutate(month=lubridate::month(as.Date(mean_doy, origin=paste0(as.numeric(year), "-01-01"))))
+#  
+#  write.csv(pl2%>%dplyr::rename("Indicator"="Val"),file=paste0(alpha_code,"_GSA",gsa,"_","L95_selection.csv",sep=""),row.names = F)
+#  
+#  pl3=pl1%>%
+#    dplyr::select(year, Val,stdev_tot)%>%
+#    dplyr::mutate(type="tot")%>%
+#    bind_rows(pl2%>%
+#                dplyr::select(year,Val,stdev_tot)%>%
+#                dplyr::mutate(type="selection"))
+#  
+#  ggplot(pl3, aes(x=year, y=Val, color=type)) + 
+#    geom_line(linetype = "solid",size=1.25) +
+#    geom_point()+
+#    geom_hline(data=pl3%>%dplyr::filter(type=="tot"),aes(yintercept = mean(Val), color=type))+
+#    geom_hline(data=pl3%>%dplyr::filter(type=="selection"),aes(yintercept = mean(Val), color=type))+
+#    geom_errorbar(aes(ymin=Val-stdev_tot, ymax=Val+stdev_tot), width=.2,
+#                  position=position_dodge(0.05),linetype = "dashed",size=0.75)+
+#    ylab("mm")+
+#    ggtitle(paste0(gen,spec,"_","GSA",gsa,"_",state," L95 total and selected strata:" , selection_txt))
+#  
+#  
+#
+#}
+
+if(is.na(Lmat)==F){
   
-  pl2=L95_fun(LFD_sel, SW_sel, "Selection", side_vars_sel) %>%
+  pl2=L95_fun(LFD_threshold, SW, "Lmat", side_vars) %>%
     dplyr::mutate(month=lubridate::month(as.Date(mean_doy, origin=paste0(as.numeric(year), "-01-01"))))
   
-  write.csv(pl2%>%dplyr::rename("Indicator"="Val"),file=paste0(alpha_code,"_GSA",gsa,"_","L95_selection.csv",sep=""),row.names = F)
+  write.csv(pl2%>%dplyr::rename("L95"="Val"),file=paste0(alpha_code,"_GSA",gsa,"_","Indicators_sizethreshold.csv",sep=""),row.names = F)
   
   pl3=pl1%>%
-    dplyr::select(year, Val,stdev_tot)%>%
+    dplyr::select(year, Val,Pmega,stdev_tot)%>%
     dplyr::mutate(type="tot")%>%
     bind_rows(pl2%>%
-                dplyr::select(year,Val,stdev_tot)%>%
-                dplyr::mutate(type="selection"))
+                dplyr::select(year,Val,Pmega, stdev_tot)%>%
+                dplyr::mutate(type="Lmat"))
   
-  ggplot(pl3, aes(x=year, y=Val, color=type)) + 
-    geom_line(linetype = "solid",size=1.25) +
-    geom_point()+
-    geom_hline(data=pl3%>%dplyr::filter(type=="tot"),aes(yintercept = mean(Val), color=type))+
-    geom_hline(data=pl3%>%dplyr::filter(type=="selection"),aes(yintercept = mean(Val), color=type))+
-    geom_errorbar(aes(ymin=Val-stdev_tot, ymax=Val+stdev_tot), width=.2,
+  pl95=ggplot(pl3, aes(x=year, y=Val, color=factor(type))) +
+    geom_line(linetype = "solid", size=1.25) +
+    scale_colour_manual(values=c("deepskyblue3", "tomato"))+
+    geom_point(data=pl3, aes(x=year, y=Val, color=factor(type)))+
+    geom_hline(data=pl3%>%dplyr::filter(type=="tot"),aes(yintercept = mean(Val)), color="tomato")+
+    geom_hline(data=pl3%>%dplyr::filter(type=="Lmat"),aes(yintercept = mean(Val)), color="deepskyblue3")+
+    geom_errorbar(data=pl3, aes(ymin=Val-stdev_tot, ymax=Val+stdev_tot), width=.2,
                   position=position_dodge(0.05),linetype = "dashed",size=0.75)+
     ylab("mm")+
-    ggtitle(paste0(gen,spec,"_","GSA",gsa,"_",state," L95 total and selected strata:" , selection_txt))
+    ggtitle(paste0(gen,spec,"_","GSA",gsa,"_",state," L95 total and on Lmat:" , Lmat, " mm"))+
+    guides(color = guide_legend(title = "Data"))
   
-  
-
-}
-
-if(is.na(size_thresh)==F){
-  
-  pl2=L95_fun(LFD_threshold, SW, "Size threshold", side_vars) %>%
-    dplyr::mutate(month=lubridate::month(as.Date(mean_doy, origin=paste0(as.numeric(year), "-01-01"))))
-  
-  write.csv(pl2%>%dplyr::rename("Indicator"="Val"),file=paste0(alpha_code,"_GSA",gsa,"_","L95_sizethreshold.csv",sep=""),row.names = F)
-  
-  pl3=pl1%>%
-    dplyr::select(year, Val,stdev_tot)%>%
-    dplyr::mutate(type="tot")%>%
-    bind_rows(pl2%>%
-                dplyr::select(year,Val,stdev_tot)%>%
-                dplyr::mutate(type="size_threshold"))
-  
-  ggplot(pl3, aes(x=year, y=Val, color=type)) + 
-    geom_line(linetype = "solid",size=1.25) +
-    geom_point()+
-    geom_hline(data=pl3%>%dplyr::filter(type=="tot"),aes(yintercept = mean(Val), color=type))+
-    geom_hline(data=pl3%>%dplyr::filter(type=="size_threshold"),aes(yintercept = mean(Val), color=type))+
-    geom_errorbar(aes(ymin=Val-stdev_tot, ymax=Val+stdev_tot), width=.2,
-                  position=position_dodge(0.05),linetype = "dashed",size=0.75)+
-    ylab("mm")+
-    ggtitle(paste0(gen,spec,"_","GSA",gsa,"_",state," L95 total and on size threshold:" , size_thresh, " mm"))
+  ppmega=ggplot(pl3, aes(x=year, y=Pmega, color=factor(type))) +
+    geom_line(linetype = "solid", size=1.25) +
+    scale_colour_manual(values=c("deepskyblue3", "tomato"))+
+    geom_point(data=pl3, aes(x=year, y=Pmega, color=factor(type)))+
+    geom_hline(data=pl3%>%dplyr::filter(type=="tot"),aes(yintercept = mean(Pmega)), color="tomato")+
+    geom_hline(data=pl3%>%dplyr::filter(type=="Lmat"),aes(yintercept = mean(Pmega)), color="deepskyblue3")+
+    geom_hline(yintercept=0.3, color="black")+
+    annotate(geom="text", x=1997, y=0.35, label="Ref.point = 0.3", lynetype=2)+
+    ylab("% individuals > Lopt")+
+    ggtitle(paste0(gen,spec,"_","GSA",gsa,"_",state," Pmega total and on Lmat:" , Lmat, " mm"))+
+    guides(color = guide_legend(title = "Data"))
   
   
   
 }
 
-ggsave(filename=paste0(state,"_","GSA_",gsa,"L95uncertainty.jpeg"),width = 10, height = 8, dpi = 150, units = "in")
+ggsave(plot =pl95, filename=paste0(state,"_","GSA_",gsa,"L95uncertainty.jpeg"),width = 10, height = 8, dpi = 150, units = "in")
 
+ggsave(plot =ppmega, filename=paste0(state,"_","GSA_",gsa,"Pmega.jpeg"),width = 10, height = 8, dpi = 150, units = "in")
 
 
 toc()
