@@ -10,15 +10,19 @@ virtualPop_new3 <- function (tincr = 1/12, K.mu = 0.5, K.cv = 0.1, Linf.mu = 80,
                            fished_t = seq(timemin + 5, timemax, tincr), lfqFrac = 1,
                            age = c(0,1,2,3,4,5), mortality = c(1,0.8,0.6,0.4,0.2,0.1),
                            Lopt = 2/3*Linf.mu,
-                           L_cut = Linf.mu,
+                           max_age = age[length(age)],
+                           Lrec = 4,
+                           l1 = 14,
+                           growth_type = "Fast_growth_K",
                            selectivity = "logistic",
                            progressBar = TRUE) 
 {
+  # Check and install missing libraries
   require(dublogistic)
   require(tidyverse)
   require(magrittr)
   require(fishdynr)
-  #source("s/inverse_vonBert.R")
+  require(segmented)
   
     timeseq <- seq(from = timemin, to = timemax, by = tincr)
   if (!zapsmall(1/tincr) == length(repro_wt)) 
@@ -59,7 +63,7 @@ virtualPop_new3 <- function (tincr = 1/12, K.mu = 0.5, K.cv = 0.1, Linf.mu = 80,
   df <- as.data.frame(cbind(age3, mortality3))
   df <- na.omit(df)
   lm <- lm(mortality3 ~ age3, data = df)
-  require(segmented)
+
   control <- seg.control(fix.npsi = TRUE)
   my.seg <- segmented(lm, 
                       seg.Z = ~ age3,
@@ -67,16 +71,16 @@ virtualPop_new3 <- function (tincr = 1/12, K.mu = 0.5, K.cv = 0.1, Linf.mu = 80,
   mort <- ggplot() +
     geom_point(aes(x = df$age3 , y = my.seg$fitted.values)) +
     geom_line(aes(x = df$age3 , y = my.seg$fitted.values), color = "red")
-  pdf(file = "maps/natural_mortality.pdf")
+  pdf(file = "natural_mortality.pdf")
   print(mort)
   dev.off()
   
   
   make.inds <- function(id = NA, A = 0, L = 0, W = NA, mat = 0, 
-                        K = NA, Winf = NA, Linf = NA, phiprime = NA, F = NA, 
+                        K = NA, K1 = NA, Winf = NA, Linf = NA, phiprime = NA, F = NA, 
                         Z = NA, Fd = 0, alive = 1, M = NA) {
     inds <- data.frame(id = id, A = A, L = L, W = W, Lmat = LWa * 
-                         L^LWb, mat = mat, K = K, Linf = Linf, Winf = Winf, 
+                         L^LWb, mat = mat, K = K, K1 = K, Linf = Linf, Winf = Winf, 
                        phiprime = phiprime, F = F, Z = Z, Fd = Fd, alive = alive, M = NA)
     lastID <<- max(inds$id)
     return(inds)
@@ -84,8 +88,24 @@ virtualPop_new3 <- function (tincr = 1/12, K.mu = 0.5, K.cv = 0.1, Linf.mu = 80,
   express.inds <- function(inds) {
     inds$Linf <- ifelse(is.na(inds$Linf), Linf.mu * rlnorm(nrow(inds), 
                                                            0, Linf.cv), inds$Linf)
+    if (growth_type == "Standard"){
     inds$K <- ifelse(is.na(inds$K), K.mu * rlnorm(nrow(inds), 
                                                   0, K.cv), inds$K)
+    } else if (growth_type == "Fast_growth_K") {
+      
+      inds$K <- ifelse(is.na(inds$K), K.mu * rlnorm(nrow(inds), 
+                                                    0, K.cv), inds$K)
+      # add K for the first year
+      l0 <- 0
+      l1 <- l1
+      T0 <- 0
+      T1 <- 1
+      K_cost <- ((l1 - l0)/(T1-T0))/((Linf.mu - ((l1-l0)/2)))
+      # add 3 different K, larval stage, 1 year
+      inds$K1 <- ifelse(inds$A < 1, K_cost * rlnorm(nrow(inds), 
+                                                   0, K.cv), inds$K)
+      
+    }
     inds$Winf <- LWa * inds$Linf^LWb
     inds$W <- LWa * inds$L^LWb
     inds$phiprime <- log10(inds$K) + 2 * log10(inds$Linf)
@@ -94,12 +114,18 @@ virtualPop_new3 <- function (tincr = 1/12, K.mu = 0.5, K.cv = 0.1, Linf.mu = 80,
     return(inds)
   }
   grow.inds <- function(inds) {
-    L2 <- dt_growth_soVB(Linf = inds$Linf, K = inds$K, ts = ts, 
-                         C = C, L1 = inds$L, t1 = t - tincr, t2 = t)
-    inds$L <- L2
-    inds$W <- LWa * inds$L^LWb
-    inds$A <- inds$A + tincr
-    return(inds)
+    if (growth_type == "Standard") {
+      L2 <- dt_growth_soVB(Linf = inds$Linf, K = inds$K, ts = ts, 
+                           C = C, L1 = inds$L, t1 = t - tincr, t2 = t)
+    } else if (growth_type == "Fast_growth_K") {
+      L2 <- dt_growth_soVB(Linf = inds$Linf, K = ifelse(inds$A >= 1, inds$K, inds$K1), ts = ts, 
+                           C = C, L1 = inds$L, t1 = t - tincr, t2 = t)
+    }
+      inds$L <- L2
+      inds$W <- LWa * inds$L^LWb
+      inds$A <- inds$A + tincr
+      return(inds)
+    
   }
   mature.inds <- function(inds) {
     inds$mat <- ifelse((inds$L > inds$Lmat | inds$mat == 
@@ -130,6 +156,7 @@ virtualPop_new3 <- function (tincr = 1/12, K.mu = 0.5, K.cv = 0.1, Linf.mu = 80,
       
       
     } else if (selectivity == "dublogistic") { 
+      
       pSel <- dublogistic.f(inds$L, L50, R50, al, ar, pmax, pmin)
       inds$F <- pSel$selectivity * Fmax
     }
@@ -150,7 +177,7 @@ virtualPop_new3 <- function (tincr = 1/12, K.mu = 0.5, K.cv = 0.1, Linf.mu = 80,
     return(inds)
   }
   remove.inds <- function(inds) {
-    dead <- which(inds$alive == 0)
+    dead <- which(inds$alive == 0 | inds$A > max_age)
     if (length(dead) > 0) {
       inds <- inds[-dead, ]
     }
@@ -254,21 +281,21 @@ virtualPop_new3 <- function (tincr = 1/12, K.mu = 0.5, K.cv = 0.1, Linf.mu = 80,
     
     
     # calculate proportions for sea pop
-    L95 <- inds %>% count(L >= res$pop$L95[j])
+    L95 <- inds %>% filter(L > Lrec) %>% count(L >= res$pop$L95[j])
     res$pop$L95_p[j] <- (L95[2,2] / res$pop$N[j])*100
-    L50mat <- inds %>% count(L >= Lmat)
+    L50mat <- inds %>% filter(L > Lrec) %>% count(L >= Lmat)
     res$pop$L50mat_p[j] <- (L50mat[2,2] / res$pop$N[j])*100
-    Lopt_p <- inds %>% count(L >= Lopt)
+    Lopt_p <- inds %>% filter(L > Lrec) %>% count(L >= Lopt)
     res$pop$Lopt_p[j] <- (Lopt_p[2,2] / res$pop$N[j])*100
     
     # calculate proportions for catches
     if(lfqSamp == 1 & harvest_rate != 0) {
       catch <- indsSamp[[j]]
-      L95_c <- catch %>% count(L >= res$pop$L95[j])
+      L95_c <- catch %>% filter(L > Lrec) %>% count(L >= res$pop$L95[j])
       res$pop$L95_pc[j] <- (L95[2,2] / res$pop$N[j])*100
-      L50mat_c <- catch %>% count(L >= Lmat)
+      L50mat_c <- catch %>% filter(L > Lrec) %>% count(L >= Lmat)
       res$pop$L50mat_pc[j] <- (L50mat[2,2] / res$pop$N[j])*100
-      Lopt_c <- catch %>% count(L >= Lopt)
+      Lopt_c <- catch %>% filter(L > Lrec) %>% count(L >= Lopt)
       res$pop$Lopt_pc[j] <- (Lopt_c[2,2] / res$pop$N[j])*100
     }
     
@@ -281,13 +308,13 @@ virtualPop_new3 <- function (tincr = 1/12, K.mu = 0.5, K.cv = 0.1, Linf.mu = 80,
         mutate(size_cl = cut(L, breaks = bb, include.lowest = TRUE)) %>% 
         group_by(size_cl) %>% 
         summarise(biomass = sum(W),
-                  n = n()) %>%
+                  n = n(),
+                  A = mean(A, na.rm = TRUE)) %>%
         ungroup() %>% 
         complete(size_cl) %>% 
         mutate(biomass = ifelse(is.na(biomass), 0, biomass),
                n = ifelse(is.na(n), 0, n),
-               length = row_number()) %>% 
-        filter(length <= L_cut)
+               length = row_number())
     }
     
     
@@ -317,26 +344,22 @@ virtualPop_new3 <- function (tincr = 1/12, K.mu = 0.5, K.cv = 0.1, Linf.mu = 80,
     
     
     # aggregate data for captures
-    for (i in 1:length(res$inds)) {
-      
-      cc <- seq(0,max(res$inds[[i]]$L)+5,1)
-      res$inds[[i]] %<>% mutate(size_cl = cut(L, breaks = cc, include.lowest = TRUE)) %>% 
-        group_by(size_cl) %>% 
-        summarise(biomass = sum(W),
-                  n = n()) %>%
-        ungroup() %>% 
-        complete(size_cl) %>% 
-        mutate(biomass = ifelse(is.na(biomass), 0, biomass),
-               n = ifelse(is.na(n), 0, n),
-               length = row_number()) %>% 
-        filter(length <= L_cut)
-    }
+    cc <- seq(0,max(res$inds[[length(res$inds)]]$L)+5,1)
+    res$inds %<>% 
+      map(mutate, size_cl = cut(L, breaks = cc, include.lowest = TRUE)) %>% 
+      map(group_by, size_cl) %>% 
+      map(summarise, biomass = sum(W),
+          n = n(),
+          A = mean(A, na.rm = TRUE)) %>% 
+      map(ungroup) %>% 
+      map(complete, size_cl) %>% 
+      map(mutate, biomass = ifelse(is.na(biomass), 0, biomass),
+          n = ifelse(is.na(n), 0, n),
+          length = row_number())
   }
   # erase empty years
   res$sea_pop[sapply(res$sea_pop, is.null)] <- NULL
-  
 
-  
   return(res)
 }
 
