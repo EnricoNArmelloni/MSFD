@@ -3,6 +3,8 @@ library(fmsb)
 library(Hmisc)
 library(car)
 library(tidyverse)
+require(magrittr)
+
 rm(list = ls())
 
 # setting the working directory and select the datasets
@@ -142,6 +144,14 @@ dev.off()
 
 
 # ASSUNZIONE SU INDIPENDENZA, SI PLOTTANO I RESIDUI CONTRO LA VARIABILE INDIPENDENTE:
+
+# ASSUNZIONE SU INDIPENDENZA, SI PLOTTANO I RESIDUI CONTRO LA VARIABILE INDIPENDENTE:
+png(paste0(dir_t, "/gam/", indicator, pop, "autocorrelation.png"), height = 20, width = 30, units = "cm",  res = 600) 
+par(mfrow = c(1,1))
+acf(residuals(mod))
+dev.off()
+
+
 plot_variabili=function(beta, teta){
   var1 <- beta
   plot(x = var1, y = E.m4, xlab = teta,
@@ -207,21 +217,49 @@ dev.off()
 
 
 ################################# Prediction anbd standardization
-data$pred=predict(mod)
-stand=data%>%dplyr::mutate(month=st_month)
-data$stand=predict(mod, newdata=stand)
+xx <- predict(mod, type = "response", se.fit = TRUE)
+data$pred <- xx$fit
+data$pred.se <- xx$se.fit
 
-newdat=data%>%gather(key="Data", value="Indicator", Indicator, pred,stand)%>%
-  dplyr::mutate(Data=ifelse(Data=="Indicator", "obs",Data))
+stand <- data %>% dplyr::mutate(month = st_month, nhauls = 120)
+yy <- predict(mod, newdata=stand, type = "response", se.fit = TRUE)
+data$stand <- yy$fit
+data$stand.se <- yy$se.fit
 
-ggplot()+geom_line(aes(x=year, y=Indicator, color=Data), data=newdat)+geom_point(aes(x=year, y=Indicator, color=Data), data=newdat)+theme_bw()+
-  ylab("L95 (mm)")+
-  scale_x_continuous(breaks = seq(1994,2017,2))+
-  scale_color_discrete(name = "Source", labels = c("Observed", "Predicted", paste("Standardized on month",st_month)))+
-  ggtitle(paste(sspp,"GSA",gsa, indicator, pop))+ theme(legend.position="bottom")
+data %<>% mutate(pred.lwr = pred - 1.96*pred.se,
+                 pred.upr = pred + 1.96*pred.se,
+                 stand.lwr = stand - 1.96*stand.se,
+                 stand.upr = stand + 1.96*stand.se) 
 
-ggsave(paste0(dir_t, "/gam/", indicator, pop, "indicator_trend.png"))
+
+gam1 <- ggplot()+
+  geom_point(aes(x = year, y = Indicator), color = "black", data = data) +
+  geom_smooth(data = data, aes(x = year, y = stand, 
+                               ymin = stand -1.96 * stand.se,
+                               ymax = stand + 1.96 * stand.se, 
+                               color = "Standardized on month 6",
+                               fill = "Standardized on month 6"), 
+              stat = "identity") +
+  geom_smooth(data = data, aes(x = year, y = pred, 
+                               ymin = pred -1.96 * pred.se,
+                               ymax = pred + 1.96 * pred.se, 
+                               color = "Predicted",
+                               fill = "Predicted"), 
+              stat = "identity") +
+  
+  theme_bw()+
+  ylab("L95 (mm)") +
+  xlab("Year") +
+  scale_x_continuous(breaks = seq(1994,2020,2)) +
+  scale_color_discrete(name = "Source", 
+                       labels = c("Predicted", paste("Standardized on month",st_month)))+
+  scale_fill_discrete(name = "Source", 
+                      labels = c("Predicted", paste("Standardized on month",st_month)))+
+  ggtitle(paste(sspp,"GSA",gsa, indicator, pop)) + 
+  theme(legend.position="bottom")
+
+ggsave(paste0(dir_t, "/gam/", indicator, pop, "indicator_trend.png"), plot = gam1, width = 14, height = 8.5)
 
 write.csv(data, paste0(dir_t, "gam/",indicator,pop,  sspp,"_standardized_", st_month, ".csv"), row.names = FALSE)
 
-          
+
