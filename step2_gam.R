@@ -235,14 +235,14 @@ data %<>% mutate(pred.lwr = pred - 1.96*pred.se,
 gam1 <- ggplot()+
   geom_point(aes(x = year, y = Indicator), color = "black", data = data) +
   geom_smooth(data = data, aes(x = year, y = stand, 
-                               ymin = stand -1.96 * stand.se,
-                               ymax = stand + 1.96 * stand.se, 
+                               ymin = stand.lwr,
+                               ymax = stand.upr, 
                                color = "Standardized on month 6",
                                fill = "Standardized on month 6"), 
               stat = "identity") +
   geom_smooth(data = data, aes(x = year, y = pred, 
-                               ymin = pred -1.96 * pred.se,
-                               ymax = pred + 1.96 * pred.se, 
+                               ymin = pred.lwr,
+                               ymax = pred.upr, 
                                color = "Predicted",
                                fill = "Predicted"), 
               stat = "identity") +
